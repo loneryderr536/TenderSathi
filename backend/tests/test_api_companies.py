@@ -43,3 +43,23 @@ def test_startup_resets_stuck_runs(tmp_path):
     with TestClient(create_app(conn, Memory(str(tmp_path / "c"), HashEmbedding()), tmp_path)):
         pass
     assert db.get_tender(conn, tid)["status"] == "failed"
+
+
+def preflight(client, origin):
+    return client.options("/tenders", headers={"Origin": origin, "Access-Control-Request-Method": "GET"})
+
+
+def test_cors_allows_local_dev_origins(client):
+    for origin in ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173", "http://127.0.0.1:4173"]:
+        assert preflight(client, origin).headers.get("access-control-allow-origin") == origin
+    assert "access-control-allow-origin" not in preflight(client, "http://evil.example").headers
+
+
+def test_cors_origins_from_env(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from app import db
+    from app.main import create_app
+    monkeypatch.setenv("CORS_ORIGINS", "http://192.168.1.20:5173, http://demo.local")
+    c = TestClient(create_app(db.connect(":memory:"), None, tmp_path))
+    assert preflight(c, "http://192.168.1.20:5173").headers.get("access-control-allow-origin") == "http://192.168.1.20:5173"
+    assert "access-control-allow-origin" not in preflight(c, "http://localhost:5173").headers
