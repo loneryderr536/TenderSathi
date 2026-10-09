@@ -6,6 +6,7 @@ python-dotenv
 pymupdf
 chromadb
 pytest
+httpx
 langgraph
 langchain-core
 # LangChain provider package: keep the one matching your API key
