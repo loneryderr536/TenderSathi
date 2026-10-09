@@ -94,16 +94,18 @@ All screenshots will be taken from the running app (see the [`screenshots/`](scr
 
 ```mermaid
 flowchart TD
-    A[You: business profile, past orders, certificates] --> M[(Business memory<br/>Postgres + pgvector)]
+    A[You: business profile, past orders, certificates] --> M[(Business memory<br/>ChromaDB + SQLite)]
     B[Tender PDF<br/>GeM · CPPP · Kerala e-tender] --> C[Reader agent<br/>splits clauses, extracts key facts]
     C --> D[Eligibility agent<br/>pass · fail · missing, with citations]
     M --> D
-    D --> E[Checklist agent<br/>documents you have vs. need]
+    D -- Fails a must-have rule --> X[Stop and explain why]
+    D -- Qualifies --> E[Checklist agent<br/>documents you have vs. need]
     M --> E
     E --> F[Drafter agent<br/>cover letter + technical bid]
     M --> F
     F --> G[Reviewer agent<br/>compliance matrix]
-    G --> H{You approve?}
+    G -- Rule missed, up to 2 rounds --> F
+    G -- All rules covered --> H{You approve?}
     H -- No, edit --> F
     H -- Yes --> I[Export bid pack]
     I --> J[You add price and submit<br/>on the government portal]
@@ -116,22 +118,23 @@ flowchart TD
 
 | Part | What we used |
 |---|---|
-| **Website (frontend)** | React, Vite, TypeScript, Tailwind CSS, shadcn/ui |
+| **Website (frontend)** | React (JavaScript), Vite, Tailwind CSS |
 | **Pages and data loading** | React Router, TanStack Query |
 | **Server (backend)** | Python, FastAPI |
-| **Agent pipeline** | LangGraph (fixed steps, shared state, approval pause) |
-| **AI model** | Paid LLM API, behind one small wrapper so the provider can be swapped |
-| **Reading PDFs** | Docling, with Tesseract OCR for scanned pages |
-| **Database and vector memory** | PostgreSQL with pgvector |
-| **Live progress** | Server-sent events from FastAPI to the website |
-| **Tracing** | Langfuse (shows every agent step) |
-| **Running it** | Docker Compose |
+| **Agents** | Plain Python: one function per agent, one manager that runs them in order |
+| **Checked agent outputs** | Pydantic (every agent must return a fixed shape; bad output is retried) |
+| **AI model** | Paid LLM API, behind one small `llm.py` file so the provider can be swapped |
+| **Reading PDFs** | PyMuPDF |
+| **Vector memory** | ChromaDB (runs inside the app, no server needed) |
+| **App data and agent log** | SQLite |
+| **Live progress** | The website checks the agent log every 2 seconds |
+| **Testing** | pytest |
 
 ---
 
 ## Run it yourself
 
-You need **Docker**, **Python 3.11** and **Node.js 18+**. Run these from the project folder.
+You need **Python 3.11** and **Node.js 18+**. Run these from the project folder.
 
 **1. Add your settings**
 
@@ -141,22 +144,17 @@ cp .env.example .env
 
 Open `.env` and add your LLM API key.
 
-**2. Start the database**
+**2. Start the server**
 
 ```bash
-docker compose up -d db
-```
-
-**3. Start the server**
-
-```bash
+cd backend
 python -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
-uvicorn backend.main:app --port 8000
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --port 8000
 ```
 
-**4. Start the website** (in a second terminal)
+**3. Start the website** (in a second terminal)
 
 ```bash
 cd frontend
@@ -164,15 +162,12 @@ npm install
 npm run dev
 ```
 
-**5. Open** http://localhost:5173
-
-Or start everything at once with `docker compose up`.
+**4. Open** http://localhost:5173
 
 Optional extras:
 
 - **Sample data:** `python scripts/load_demo_data.py` loads a sample business profile and demo tenders.
-- **Agent tracing:** add your Langfuse keys to `.env` to see every agent step.
-- **Run the tests:** `pytest`
+- **Run the tests:** `cd backend && pytest`
 
 ---
 
