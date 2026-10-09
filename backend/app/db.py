@@ -5,7 +5,7 @@ import sqlite3
 import threading
 
 from app.schemas import (BidDraft, Checklist, ChecklistItem, EligibilityResult, ReviewResult, Rule,
-                         RuleVerdict, Section, TenderFacts)
+                         RuleVerdict, Section, TenderChanges, TenderFacts)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS companies (
@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS past_orders (
     id INTEGER PRIMARY KEY, company_id INTEGER, buyer TEXT, item TEXT, value TEXT, year INTEGER);
 CREATE TABLE IF NOT EXISTS tenders (
     id INTEGER PRIMARY KEY, pdf_path TEXT, title TEXT, deadline TEXT, emd TEXT, payment_terms TEXT,
-    required_documents_json TEXT, status TEXT, reason TEXT, current_run_id TEXT);
+    required_documents_json TEXT, status TEXT, reason TEXT, current_run_id TEXT,
+    deadline_at TEXT, changes_json TEXT);
 CREATE TABLE IF NOT EXISTS rules (
     id INTEGER PRIMARY KEY, tender_id INTEGER, text TEXT, clause TEXT, page INTEGER, must_have INTEGER);
 CREATE TABLE IF NOT EXISTS verdicts (
@@ -47,10 +48,19 @@ def _locked(fn):
     return wrapper
 
 
+# Columns added after the first release: older database files get them on connect.
+ADDED_COLUMNS = [("tenders", "reason", "TEXT"), ("tenders", "current_run_id", "TEXT"),
+                 ("tenders", "deadline_at", "TEXT"), ("tenders", "changes_json", "TEXT")]
+
+
 def connect(path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    for table, column, kind in ADDED_COLUMNS:
+        if column not in {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+    conn.commit()
     return conn
 
 
@@ -118,7 +128,7 @@ def get_tender(conn, tender_id) -> dict | None:
 @_locked
 def list_tenders(conn) -> list[dict]:
     return [dict(r) for r in conn.execute(
-        "SELECT id, title, deadline, emd, status, reason FROM tenders ORDER BY id DESC")]
+        "SELECT id, title, deadline, deadline_at, emd, status, reason FROM tenders ORDER BY id DESC")]
 
 
 @_locked
@@ -175,6 +185,9 @@ def save_run_output(conn, tender_id, state: dict):
         for table in OUTPUT_TABLES:
             conn.execute(f"DELETE FROM {table} WHERE tender_id = ?", (tender_id,))
         conn.execute("UPDATE tenders SET required_documents_json = NULL WHERE id = ?", (tender_id,))
+        deadline_at = state.get("deadline_at")
+        conn.execute("UPDATE tenders SET deadline_at = ? WHERE id = ?",
+                     (deadline_at.isoformat() if deadline_at else None, tender_id))
 
         if facts := state.get("facts"):
             conn.execute(
@@ -210,6 +223,20 @@ def update_draft(conn, tender_id, draft: BidDraft):
         "(SELECT id FROM drafts WHERE tender_id = ? ORDER BY id DESC LIMIT 1)",
         (draft.cover_letter, json.dumps([s.model_dump() for s in draft.sections]), tender_id))
     conn.commit()
+
+
+@_locked
+def record_tender_change(conn, tender_id, new_pdf_path, changes: TenderChanges):
+    """A corrigendum replaced the tender PDF: keep what changed and mark the tender for a fresh run."""
+    conn.execute("UPDATE tenders SET pdf_path = ?, changes_json = ?, status = 'changed', reason = NULL WHERE id = ?",
+                 (new_pdf_path, changes.model_dump_json(), tender_id))
+    conn.commit()
+
+
+@_locked
+def get_changes(conn, tender_id) -> TenderChanges | None:
+    row = conn.execute("SELECT changes_json FROM tenders WHERE id = ?", (tender_id,)).fetchone()
+    return TenderChanges.model_validate_json(row["changes_json"]) if row and row["changes_json"] else None
 
 
 @_locked

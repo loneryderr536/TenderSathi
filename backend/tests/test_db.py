@@ -136,3 +136,39 @@ def test_reset_stuck_runs(conn):
     assert (db.get_tender(conn, stuck)["status"], db.get_tender(conn, stuck)["reason"]) == \
         ("failed", "Server restarted during run")
     assert db.get_tender(conn, done)["status"] == "awaiting_approval"
+
+
+def test_deadline_at_saved_with_run_output_and_listed(conn):
+    from datetime import datetime
+    tid = db.create_tender(conn, "/tmp/t.pdf", "t")
+    db.save_run_output(conn, tid, {"facts": FACTS, "deadline_at": datetime(2026, 10, 30, 15, 0)})
+    assert db.get_tender(conn, tid)["deadline_at"] == "2026-10-30T15:00:00"
+    assert db.list_tenders(conn)[0]["deadline_at"] == "2026-10-30T15:00:00"
+    db.save_run_output(conn, tid, {"facts": FACTS})                       # tracker found no date this time
+    assert db.get_tender(conn, tid)["deadline_at"] is None
+
+
+def test_record_tender_change(conn):
+    tid = db.create_tender(conn, "/tmp/old.pdf", "t")
+    changes = schemas.TenderChanges(changes=[schemas.Change(field="emd", before="₹50,000", after="₹75,000",
+                                                            summary="EMD raised")], affects_eligibility=False)
+    db.record_tender_change(conn, tid, "/tmp/new.pdf", changes)
+    t = db.get_tender(conn, tid)
+    assert (t["pdf_path"], t["status"]) == ("/tmp/new.pdf", "changed")
+    assert db.get_changes(conn, tid) == changes
+    assert db.get_changes(conn, db.create_tender(conn, "/tmp/x.pdf", "x")) is None
+
+
+def test_connect_upgrades_an_older_database(tmp_path):
+    import sqlite3
+    path = str(tmp_path / "old.db")
+    old = sqlite3.connect(path)
+    old.execute("CREATE TABLE tenders (id INTEGER PRIMARY KEY, pdf_path TEXT, title TEXT, deadline TEXT, emd TEXT,"
+                " payment_terms TEXT, required_documents_json TEXT, status TEXT)")
+    old.execute("INSERT INTO tenders (pdf_path, title, status) VALUES ('/tmp/a.pdf', 'Old tender', 'new')")
+    old.commit()
+    old.close()
+    conn = db.connect(path)
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(tenders)")}
+    assert {"reason", "current_run_id", "deadline_at", "changes_json"} <= cols
+    assert db.list_tenders(conn)[0]["title"] == "Old tender"

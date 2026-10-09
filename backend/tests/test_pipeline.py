@@ -1,7 +1,8 @@
 import pytest
+from datetime import datetime
 
 from app import db, schemas
-from app.agents import checklist, drafter, eligibility, reader, reviewer
+from app.agents import checklist, drafter, eligibility, reader, reviewer, tracker
 from app.graph import business_lines, run_pipeline
 from app.memory import Memory
 from tests.fakes import HashEmbedding
@@ -32,7 +33,7 @@ def world(tmp_path, monkeypatch):
     seen = {}
 
     def fake(name, result):
-        def fn(*args):
+        def fn(*args, **kwargs):
             seen[name] = args
             return result(*args) if callable(result) else result
         return fn
@@ -42,6 +43,7 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(checklist, "build_checklist", fake("checklist", CHECKLIST))
     monkeypatch.setattr(drafter, "draft_bid", fake("drafter", DRAFT))
     monkeypatch.setattr(reviewer, "review_draft", fake("reviewer", REVIEW))
+    monkeypatch.setattr(tracker, "parse_deadline", fake("tracker", datetime(2026, 10, 30, 15, 0)))
     return conn, mem, tid, cid, seen, monkeypatch, fake, tmp_path
 
 
@@ -58,7 +60,9 @@ def test_end_to_end_awaiting_approval(world):
     out = db.get_run_output(conn, tid)
     assert out["draft"] == DRAFT and out["review"].all_covered
     assert [l["agent"] for l in db.get_log(conn, tid) if l["message"] == "finished"] == \
-        ["reader", "eligibility", "checklist", "drafter", "reviewer", "await_approval"]
+        ["reader", "tracker", "eligibility", "checklist", "drafter", "reviewer", "await_approval"]
+    assert seen["tracker"][0] == FACTS.deadline
+    assert db.get_tender(conn, tid)["deadline_at"] == "2026-10-30T15:00:00"
 
 
 def test_end_to_end_stop_reason(world):
@@ -93,3 +97,14 @@ def test_reader_gets_only_key_clauses_of_a_long_tender(world):
     text = seen["reader"][0]
     assert "[clause 4.1, page 1]" in text and "Payment terms" in text
     assert estimate_tokens(text) <= READER_BUDGET_TOKENS + 200     # + the "[clause, page]" markers
+
+
+def test_tracker_failure_does_not_stop_the_run(world):
+    conn, mem, tid, cid, seen, monkeypatch, _, _ = world
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("Groq rate limit")
+    monkeypatch.setattr(tracker, "parse_deadline", broken)
+    state = run_pipeline(conn, mem, tid, cid)
+    assert state["status"] == "awaiting_approval"
+    assert db.get_tender(conn, tid)["deadline_at"] is None
