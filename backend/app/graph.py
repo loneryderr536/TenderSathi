@@ -121,7 +121,7 @@ def make_nodes(conn, mem) -> dict[str, Node]:
         tender = db.get_tender(conn, state["tender_id"])
         clauses = pdf_reader.pages_to_clauses(pdf_reader.pdf_to_pages(tender["pdf_path"]))
         mem.add_clauses(state["tender_id"], clauses)
-        text = "\n\n".join(f"[clause {c.clause}, page {c.page}] {c.text}" for c in clauses)
+        text = reader_agent.reader_input(reader_agent.select_key_clauses(clauses))
         return {"facts": reader_agent.extract_facts(text)}
 
     def eligibility(state):

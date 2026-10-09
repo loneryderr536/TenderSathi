@@ -9,6 +9,5 @@ pytest
 httpx
 langgraph
 langchain-core
-# LangChain provider package: keep the one matching your API key
-langchain-anthropic
-langchain-openai
+# LLM provider: Groq
+langchain-groq

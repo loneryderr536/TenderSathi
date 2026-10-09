@@ -17,8 +17,8 @@ def create_app(conn=None, mem=None, storage_dir: Path | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if app.state.conn is None:
-            if not os.environ.get("LLM_API_KEY"):
-                raise RuntimeError("Missing setting: LLM_API_KEY")
+            if not os.environ.get("GROQ_API_KEY"):
+                raise RuntimeError("Missing setting: GROQ_API_KEY")
             storage = config.storage_dir()
             app.state.storage_dir = storage
             app.state.conn = db.connect(str(storage / "tendersathi.db"))
