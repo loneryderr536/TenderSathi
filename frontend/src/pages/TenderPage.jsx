@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { clearCompanyId, getCompanyId, isCompanyGone, pollInterval, request } from "../api";
 import AgentLog from "../components/AgentLog";
 import Tabs from "../components/Tabs";
@@ -158,8 +158,12 @@ function RunControls({ id, status }) {
   );
 }
 
+const TAB_NAMES = ["summary", "eligibility", "checklist", "draft", "compliance"];
+
 export default function TenderPage() {
   const { id } = useParams();
+  const [params] = useSearchParams();
+  const initialTab = Math.max(0, TAB_NAMES.indexOf(params.get("tab")));   // ?tab=checklist opens that tab
   const queryClient = useQueryClient();
   const result = useQuery({
     queryKey: ["tender", id, "result"],
@@ -199,6 +203,8 @@ export default function TenderPage() {
       </div>
       <AgentLog entries={log.data || []} running={tender.status === "running"} />
       <Tabs
+        key={id}
+        initial={initialTab}
         tabs={[
           { label: "Summary", content: <Summary tender={tender} facts={facts} /> },
           { label: "Eligibility", content: <Eligibility verdicts={verdicts} /> },
