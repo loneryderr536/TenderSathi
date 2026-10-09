@@ -127,6 +127,23 @@ TENDERS = {
     },
 }
 
+def _corrigendum(lines):
+    """The school desks tender after a corrigendum: deadline extended, EMD raised, one new rule."""
+    out = []
+    for line in lines:
+        line = line.replace("30 October 2026, 3:00 PM", "6 November 2026, 3:00 PM")
+        line = line.replace("31 October 2026", "7 November 2026")
+        line = line.replace("EMD of Rs. 50,000", "EMD of Rs. 75,000")
+        out.append(line)
+        if line.startswith("4.4 "):
+            out.append("4.5 The bidder shall have a manufacturing unit registered in Kerala. Mandatory. "
+                       "(Added by Corrigendum No. 1.)")
+    out.insert(1, "CORRIGENDUM No. 1 - supersedes the earlier version of this tender.")
+    return out
+
+
+CORRIGENDA = {"school_desks_corrigendum.pdf": lambda: _corrigendum(TENDERS["school_desks.pdf"]["lines"])}
+
 PAGE_W, PAGE_H, MARGIN, LINE_H, WRAP = 595, 842, 56, 15, 92
 
 
@@ -160,6 +177,10 @@ def main():
     for name, tender in TENDERS.items():
         write_pdf(OUT / name, tender["lines"])
         print("wrote", OUT / name)
+    (OUT / "corrigenda").mkdir(exist_ok=True)
+    for name, lines in CORRIGENDA.items():
+        write_pdf(OUT / "corrigenda" / name, lines())
+        print("wrote", OUT / "corrigenda" / name)
     titles = {name: t["title"] for name, t in TENDERS.items()}
     (OUT / "titles.json").write_text(json.dumps(titles, indent=2) + "\n")
 

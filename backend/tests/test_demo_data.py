@@ -45,3 +45,12 @@ def test_load_demo_is_idempotent(tmp_path):
     assert (again_company, sorted(again_tenders)) == (company_id, sorted(tender_ids))
     assert len(db.list_tenders(conn)) == 3
     assert conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0] == 1
+
+
+def test_demo_corrigendum_parses_and_is_not_loaded_as_a_tender(tmp_path):
+    pages = pdf_to_pages(str(DATA / "tenders" / "corrigenda" / "school_desks_corrigendum.pdf"))
+    text = "\n".join(pages)
+    assert "6 November 2026" in text and "Rs. 75,000" in text and "4.5" in text
+    conn = db.connect(":memory:")
+    _, tender_ids = demo.load_demo(conn, tmp_path, DATA)
+    assert len(tender_ids) == 3

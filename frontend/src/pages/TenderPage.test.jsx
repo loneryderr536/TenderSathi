@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { setCompanyId } from "../api";
 import { NEW_TENDER, result } from "../test/samples";
 import { mockApi, renderPage } from "../test/utils";
@@ -116,4 +116,64 @@ it("falls back to Summary for an unknown tab", async () => {
   mockApi({ "GET /tenders/5/result": result(), "GET /tenders/5/log": [] });
   renderPage(<TenderPage />, { path: "/tenders/:id", route: "/tenders/5?tab=nope" });
   expect(await screen.findByRole("tab", { name: "Summary" })).toHaveAttribute("aria-selected", "true");
+});
+
+const CHANGES = { changes: [{ field: "deadline", before: "30 October 2026", after: "6 November 2026",
+                              summary: "The deadline was extended by a week." }], affects_eligibility: true };
+
+it("shows the countdown next to the title", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 9, 28, 10, 0));
+  mockApi({ "GET /tenders/5/result": result({ tender: { deadline_at: "2026-10-30T15:00:00" } }), "GET /tenders/5/log": [] });
+  show();
+  expect(await screen.findByText("2 days left")).toBeInTheDocument();
+  vi.useRealTimers();
+});
+
+it("shows what a corrigendum changed and asks for a new run", async () => {
+  setCompanyId(3);
+  mockApi({ "GET /tenders/5/result": result({ tender: { status: "changed" }, changes: CHANGES }), "GET /tenders/5/log": [] });
+  show();
+  expect(await screen.findByText("The deadline was extended by a week.")).toBeInTheDocument();
+  expect(screen.getByText("30 October 2026 → 6 November 2026")).toBeInTheDocument();
+  expect(screen.getByText(/eligibility rules changed/i)).toBeInTheDocument();
+  expect(screen.getByText(/Run the agents again/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Run again" })).toBeEnabled();
+});
+
+it("uploads a corrigendum and shows the changes", async () => {
+  setCompanyId(3);
+  let changed = false;
+  const calls = mockApi({
+    "GET /tenders/5/result": () => (changed ? result({ tender: { status: "changed" }, changes: CHANGES }) : result()),
+    "GET /tenders/5/log": [],
+    "POST /tenders/5/corrigendum": () => { changed = true; return CHANGES; },
+  });
+  const user = userEvent.setup();
+  show();
+  await user.upload(await screen.findByLabelText("Changed tender PDF (corrigendum)"),
+                    new File(["%PDF"], "corr.pdf", { type: "application/pdf" }));
+  await user.click(screen.getByRole("button", { name: "Check what changed" }));
+  expect(await screen.findByText("The deadline was extended by a week.")).toBeInTheDocument();
+  expect(calls.find((c) => c.method === "POST").init.body.get("file").name).toBe("corr.pdf");
+});
+
+it("shows why a corrigendum was refused", async () => {
+  mockApi({
+    "GET /tenders/5/result": result(), "GET /tenders/5/log": [],
+    "POST /tenders/5/corrigendum": { status: 502, body: { detail: "Could not compare the two versions: Groq is down" } },
+  });
+  const user = userEvent.setup();
+  show();
+  await user.upload(await screen.findByLabelText("Changed tender PDF (corrigendum)"),
+                    new File(["%PDF"], "corr.pdf", { type: "application/pdf" }));
+  await user.click(screen.getByRole("button", { name: "Check what changed" }));
+  expect(await screen.findByText("Could not compare the two versions: Groq is down")).toBeInTheDocument();
+});
+
+it("hides the corrigendum form before the tender has been read", async () => {
+  mockApi({ "GET /tenders/5/result": NEW_TENDER, "GET /tenders/5/log": [] });
+  show();
+  await screen.findByRole("button", { name: "Run the agents" });
+  expect(screen.queryByLabelText("Changed tender PDF (corrigendum)")).toBeNull();
 });

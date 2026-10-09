@@ -1,4 +1,5 @@
 """LangGraph StateGraph: agent nodes, the stop-on-fail branch, the review loop (max 2 send-backs)."""
+from datetime import date, datetime
 from typing import Callable, TypedDict
 from uuid import uuid4
 
@@ -10,17 +11,19 @@ from app.agents import drafter as drafter_agent
 from app.agents import eligibility as eligibility_agent
 from app.agents import reader as reader_agent
 from app.agents import reviewer as reviewer_agent
+from app.agents import tracker as tracker_agent
 from app.schemas import BidDraft, Checklist, EligibilityResult, ReviewResult, TenderFacts
 
 MAX_SEND_BACKS = 2
 
-NODE_NAMES = ("reader", "eligibility", "stop", "checklist", "drafter", "reviewer", "await_approval")
+NODE_NAMES = ("reader", "tracker", "eligibility", "stop", "checklist", "drafter", "reviewer", "await_approval")
 
 
 class TenderState(TypedDict, total=False):
     tender_id: int
     company_id: int
     facts: TenderFacts
+    deadline_at: datetime | None  # the Tracker's reading of facts.deadline
     verdicts: EligibilityResult
     checklist: Checklist
     draft: BidDraft
@@ -43,7 +46,8 @@ def build_graph(nodes: dict[str, Node]):
         g.add_node(name, nodes[name])
 
     g.add_edge(START, "reader")
-    g.add_edge("reader", "eligibility")
+    g.add_edge("reader", "tracker")
+    g.add_edge("tracker", "eligibility")
     g.add_conditional_edges(  # decision 1: stop on a clear must-have fail
         "eligibility", lambda s: "stop" if s["verdicts"].has_must_have_fail else "checklist")
     g.add_edge("stop", END)
@@ -124,6 +128,13 @@ def make_nodes(conn, mem) -> dict[str, Node]:
         text = reader_agent.reader_input(reader_agent.select_key_clauses(clauses))
         return {"facts": reader_agent.extract_facts(text)}
 
+    def tracker(state):
+        # A countdown is a nice-to-have: if the deadline can't be read, the bid still goes ahead.
+        try:
+            return {"deadline_at": tracker_agent.parse_deadline(state["facts"].deadline, today=date.today())}
+        except Exception:
+            return {"deadline_at": None}
+
     def eligibility(state):
         # The whole profile (a dozen short lines): a top-k search could miss the one line a rule needs.
         evidence = business_lines(company(state))
@@ -150,5 +161,5 @@ def make_nodes(conn, mem) -> dict[str, Node]:
     def await_approval(state):
         return {"status": "awaiting_approval"}
 
-    return {"reader": reader, "eligibility": eligibility, "stop": stop, "checklist": checklist,
+    return {"reader": reader, "tracker": tracker, "eligibility": eligibility, "stop": stop, "checklist": checklist,
             "drafter": drafter, "reviewer": reviewer, "await_approval": await_approval}

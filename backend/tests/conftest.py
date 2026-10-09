@@ -27,11 +27,14 @@ def company(client):
 def fake_agents(monkeypatch):
     """Replace every agent's LLM work with fixed outputs; returns a setter to override one."""
     from app import schemas
-    from app.agents import checklist, drafter, eligibility, reader, reviewer
+    from datetime import datetime
+
+    from app.agents import checklist, drafter, eligibility, reader, reviewer, tracker
     from tests.samples import CHECKLIST, FACTS, verdicts
 
     outputs = {
         (reader, "extract_facts"): FACTS,
+        (tracker, "parse_deadline"): datetime(2026, 10, 30, 15, 0),
         (eligibility, "judge_eligibility"): verdicts(),
         (checklist, "build_checklist"): CHECKLIST,
         (drafter, "draft_bid"): schemas.BidDraft(
@@ -41,7 +44,7 @@ def fake_agents(monkeypatch):
     }
 
     def use(module, name, value):
-        monkeypatch.setattr(module, name, lambda *args: value)
+        monkeypatch.setattr(module, name, lambda *args, **kwargs: value)
 
     for (module, name), value in outputs.items():
         use(module, name, value)

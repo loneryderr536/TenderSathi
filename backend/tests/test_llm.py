@@ -47,6 +47,41 @@ def test_structured_output_uses_json_schema(monkeypatch):
         seen.update(kwargs)
         return "runnable"
     monkeypatch.setattr(ChatGroq, "with_structured_output", record)
+    from langchain_core.runnables import RunnableLambda
+    seen_runnable = RunnableLambda(lambda x: x)
+    monkeypatch.setattr(ChatGroq, "with_structured_output", lambda self, schema, **kw: (seen.update(kw), seen_runnable)[1])
     from app.schemas import TenderFacts
-    assert llm.get_llm("reader").with_structured_output(TenderFacts) == "runnable"
+    assert llm.get_llm("reader").with_structured_output(TenderFacts).invoke("ok") == "ok"
     assert seen["method"] == "json_schema" and seen["strict"] is True
+
+
+def _fail_then_succeed(monkeypatch, errors):
+    """Patch ChatGroq so the structured runnable raises `errors` in turn, then returns "draft"."""
+    from langchain_core.runnables import RunnableLambda
+    attempts = []
+
+    def flaky(_):
+        attempts.append(1)
+        if len(attempts) <= len(errors):
+            raise errors[len(attempts) - 1]
+        return "draft"
+    monkeypatch.setattr(ChatGroq, "with_structured_output", lambda self, schema, **kw: RunnableLambda(flaky))
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    return attempts
+
+
+def test_wrong_shape_answers_are_retried(monkeypatch):
+    from langchain_core.exceptions import OutputParserException
+    from app.schemas import BidDraft
+    attempts = _fail_then_succeed(monkeypatch, [OutputParserException("list, not object"),
+                                                OutputParserException("section is a string")])
+    assert llm.get_llm("drafter").with_structured_output(BidDraft).invoke("write") == "draft"
+    assert len(attempts) == 3
+
+
+def test_other_errors_are_not_retried_here(monkeypatch):
+    from app.schemas import BidDraft
+    attempts = _fail_then_succeed(monkeypatch, [TimeoutError("slow")])
+    with pytest.raises(TimeoutError):
+        llm.get_llm("drafter").with_structured_output(BidDraft).invoke("write")
+    assert len(attempts) == 1

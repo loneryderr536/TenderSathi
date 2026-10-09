@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { mockApi, renderPage } from "../test/utils";
 import InboxPage from "./InboxPage";
 
@@ -43,4 +43,21 @@ it("shows an error when the backend is down", async () => {
   mockApi({ "GET /tenders": { status: 500, body: { detail: "Internal Server Error" } } });
   renderPage(<InboxPage />);
   expect(await screen.findByRole("alert")).toHaveTextContent("Internal Server Error");
+});
+
+it("shows days left and lists the nearest deadline first", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 9, 9, 11, 0));
+  mockApi({ "GET /tenders": [
+    { id: 1, title: "Later tender", deadline: "6 Nov", deadline_at: "2026-11-06T14:00:00", emd: null, status: "new" },
+    { id: 2, title: "Urgent tender", deadline: "12 Oct", deadline_at: "2026-10-12T09:00:00", emd: null, status: "awaiting_approval" },
+    { id: 3, title: "Changed tender", deadline: null, deadline_at: null, emd: null, status: "changed" },
+  ] });
+  renderPage(<InboxPage />);
+  const links = await screen.findAllByRole("link");
+  expect(links.map((l) => l.textContent)).toEqual(["Urgent tender", "Later tender", "Changed tender"]);
+  expect(screen.getByText("3 days left")).toHaveClass("text-red-700");
+  expect(screen.getByText("28 days left")).toBeInTheDocument();
+  expect(screen.getByText("Tender changed")).toBeInTheDocument();
+  vi.useRealTimers();
 });

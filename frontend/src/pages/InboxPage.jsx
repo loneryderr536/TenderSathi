@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { request } from "../api";
-import { Button, Card, ErrorMessage, Field, StatusBadge, inputClass } from "../components/ui";
+import { Button, Card, Countdown, ErrorMessage, Field, StatusBadge, inputClass } from "../components/ui";
+import { sortByDeadline } from "../deadline";
 
 function UploadForm() {
   const [file, setFile] = useState(null);
@@ -57,7 +58,7 @@ function TenderList() {
       )}
       {tenders.data?.length > 0 && (
         <ul className="divide-y divide-stone-200">
-          {tenders.data.map((t) => (
+          {sortByDeadline(tenders.data).map((t) => (
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
               <div>
                 <Link to={`/tenders/${t.id}`} className="font-medium text-brand-700 hover:underline">{t.title}</Link>
@@ -65,7 +66,10 @@ function TenderList() {
                   Deadline: {t.deadline || "—"} · EMD: <span>{t.emd || "—"}</span>
                 </p>
               </div>
-              <StatusBadge status={t.status} />
+              <div className="flex items-center gap-3">
+                <Countdown deadlineAt={t.deadline_at} />
+                <StatusBadge status={t.status} />
+              </div>
             </li>
           ))}
         </ul>
