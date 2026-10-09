@@ -1,0 +1,20 @@
+{
+  "name": "Ernakulam Woodworks",
+  "products": "Wooden school desks, benches, office tables and modular workstations",
+  "location": "Ernakulam, Kerala",
+  "turnover": "₹1.4 crore average over the last three financial years",
+  "udyam": true,
+  "documents": [
+    "GST registration certificate",
+    "PAN card",
+    "Udyam registration certificate",
+    "Audited balance sheets FY 2023-24 to FY 2025-26",
+    "Purchase order and completion certificate - KSEB desks 2025",
+    "Purchase order and completion certificate - Cochin Smart Office workstations 2024"
+  ],
+  "past_orders": [
+    {"buyer": "KSEB Divisional Office, Aluva", "item": "120 office desks", "value": "₹8 lakh", "year": 2025},
+    {"buyer": "Cochin Smart Office Pvt Ltd", "item": "30 modular workstations", "value": "₹12 lakh", "year": 2024},
+    {"buyer": "St. Mary's School, Kakkanad", "item": "150 school benches", "value": "₹6.5 lakh", "year": 2023}
+  ]
+}
