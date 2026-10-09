@@ -24,6 +24,8 @@ def create_app(conn=None, mem=None, storage_dir: Path | None = None) -> FastAPI:
             app.state.conn = db.connect(str(storage / "tendersathi.db"))
             app.state.mem = Memory(str(storage / "chroma"))
         db.reset_stuck_runs(app.state.conn)
+        if app.state.mem is not None:
+            app.state.mem.warm_up()
         yield
 
     app = FastAPI(title="TenderSathi", lifespan=lifespan)
