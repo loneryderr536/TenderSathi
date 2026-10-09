@@ -3,8 +3,8 @@ from app import llm
 from app.schemas import Checklist, ChecklistItem
 
 MATCH_PROMPT = """Match each document a government tender requires to one of the business's stored files.
-For each required document return: the document name exactly as given, status "have" with the
-matched file name, or status "need" if no stored file is that document.
+For each required document return: the document name exactly as given, and either status "have"
+(then copy the stored file name exactly into matched_file) or status "need" if no stored file is that document.
 
 Required documents:
 {required}
@@ -17,6 +17,7 @@ For each required document, confirm the match is correct. If a "have" points to 
 not clearly that document, or to a file not in the stored list, correct it to "need".
 If a "need" actually has a matching stored file, correct it to "have".
 Return the full corrected checklist, using each document name exactly as given.
+For every "have", copy the stored file name exactly into matched_file.
 
 Required documents:
 {required}
@@ -33,7 +34,7 @@ def _bullets(lines: list[str]) -> str:
 
 
 def build_checklist(required_docs: list[str], stored_docs: list[str]) -> Checklist:
-    """Two Haiku passes: match, then double-check the match."""
+    """Two passes: match, then double-check the match."""
     if not required_docs:
         return Checklist(items=[])
     model = llm.get_llm("checklist").with_structured_output(Checklist)

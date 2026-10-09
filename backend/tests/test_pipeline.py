@@ -79,3 +79,17 @@ def test_scanned_pdf_fails_run_with_message(world):
     assert state["status"] == "failed"
     assert ("reader", "failed: This looks like a scanned PDF; please use a text PDF") in [
         (l["agent"], l["message"]) for l in db.get_log(conn, tid)]
+
+
+def test_reader_gets_only_key_clauses_of_a_long_tender(world):
+    from app.agents.reader import READER_BUDGET_TOKENS, estimate_tokens
+    conn, mem, _, cid, seen, _, _, tmp_path = world
+    spec_pages = [f"{n}. Technical specification {n}\n" + "Seasoned teak with polyurethane finish.\n" * 45
+                  for n in range(10, 60)]
+    pages = ["Notice inviting tender\n4.1 Turnover of Rs 60 lakh\n7. Payment terms: 30 days after delivery\n",
+             *spec_pages]
+    tid = db.create_tender(conn, make_pdf(tmp_path, pages, name="long.pdf"), "Long tender")
+    run_pipeline(conn, mem, tid, cid)
+    text = seen["reader"][0]
+    assert "[clause 4.1, page 1]" in text and "Payment terms" in text
+    assert estimate_tokens(text) <= READER_BUDGET_TOKENS + 200     # + the "[clause, page]" markers
