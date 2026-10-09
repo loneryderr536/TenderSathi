@@ -125,14 +125,9 @@ def make_nodes(conn, mem) -> dict[str, Node]:
         return {"facts": reader_agent.extract_facts(text)}
 
     def eligibility(state):
-        rules = state["facts"].rules
-        mem.add_business(state["company_id"], business_lines(company(state)))
-        evidence = []
-        for rule in rules:
-            for line in mem.search_business(state["company_id"], rule.text, k=3):
-                if line not in evidence:
-                    evidence.append(line)
-        return {"verdicts": eligibility_agent.judge_eligibility(rules, evidence)}
+        # The whole profile (a dozen short lines): a top-k search could miss the one line a rule needs.
+        evidence = business_lines(company(state))
+        return {"verdicts": eligibility_agent.judge_eligibility(state["facts"].rules, evidence)}
 
     def stop(state):
         fails = [v for v in state["verdicts"].verdicts if v.must_have and v.verdict == "fail"]

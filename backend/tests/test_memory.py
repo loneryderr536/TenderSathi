@@ -25,13 +25,23 @@ def test_add_clauses_replaces_on_rerun(mem):
     assert mem.search_clauses(1, "turnover", k=10) == [ISO]
 
 
-def test_business_search_and_replace(mem):
-    mem.add_business(1, ["Yearly turnover: ₹1.4 crore", "Holds document: gst.pdf"])
-    mem.add_business(2, ["Yearly turnover: ₹9 crore"])
-    assert mem.search_business(1, "turnover", k=1) == ["Yearly turnover: ₹1.4 crore"]
-    mem.add_business(1, ["Holds document: pan.pdf"])
-    assert mem.search_business(1, "turnover", k=10) == ["Holds document: pan.pdf"]
-
-
 def test_empty_memory_returns_empty(mem):
-    assert mem.search_clauses(5, "anything") == [] and mem.search_business(5, "anything") == []
+    assert mem.search_clauses(5, "anything") == []
+
+
+def test_warm_up_runs_the_embedding_once(tmp_path):
+    calls = []
+
+    class Counting(HashEmbedding):
+        def __call__(self, input):
+            calls.append(list(input))
+            return super().__call__(input)
+
+    Memory(str(tmp_path), embedding_function=Counting()).warm_up()
+    assert len(calls) == 1
+
+
+def test_warm_up_never_raises(tmp_path, monkeypatch):
+    m = Memory(str(tmp_path), embedding_function=HashEmbedding())
+    monkeypatch.setattr(m.clauses, "query", lambda **kw: (_ for _ in ()).throw(RuntimeError("offline")))
+    assert m.warm_up() is False

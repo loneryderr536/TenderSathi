@@ -12,7 +12,7 @@ function NavItem({ to, children }) {
       to={to}
       end
       className={({ isActive }) =>
-        `rounded-md px-3 py-2 text-sm font-medium ${isActive ? "bg-brand-700 text-white" : "text-brand-100 hover:bg-brand-700/60"}`
+        `rounded-md px-2 py-2 text-sm font-medium sm:px-3 ${isActive ? "bg-brand-700 text-white" : "text-brand-100 hover:bg-brand-700/60"}`
       }
     >
       {children}
@@ -37,7 +37,7 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <header className="bg-brand-900">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
           <NavLink to="/" className="text-lg font-semibold text-white">
             TenderSathi
           </NavLink>
