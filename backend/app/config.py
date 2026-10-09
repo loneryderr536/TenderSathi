@@ -37,3 +37,12 @@ def storage_dir() -> Path:
         path = (BACKEND_DIR / path).resolve()
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+DEFAULT_CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173", "http://127.0.0.1:4173"]
+
+
+def cors_origins() -> list[str]:
+    """Websites allowed to call the API: CORS_ORIGINS (comma-separated) or the local Vite ports."""
+    value = os.environ.get("CORS_ORIGINS", "")
+    return [o.strip() for o in value.split(",") if o.strip()] or DEFAULT_CORS_ORIGINS
