@@ -115,3 +115,24 @@ def test_tender_reason_and_run_id(conn):
     db.set_current_run(conn, tid, "abc")
     t = db.get_tender(conn, tid)
     assert (t["status"], t["reason"], t["current_run_id"]) == ("stopped", "Fails turnover", "abc")
+
+
+def test_claim_run_is_exclusive(conn):
+    tid = db.create_tender(conn, "/tmp/t.pdf", "t")
+    db.set_tender_status(conn, tid, "failed", reason="old error")
+    assert db.claim_run(conn, tid, "r1") is True
+    t = db.get_tender(conn, tid)
+    assert (t["status"], t["current_run_id"], t["reason"]) == ("running", "r1", None)
+    assert db.claim_run(conn, tid, "r2") is False
+    assert db.get_tender(conn, tid)["current_run_id"] == "r1"
+
+
+def test_reset_stuck_runs(conn):
+    stuck = db.create_tender(conn, "/tmp/a.pdf", "a")
+    done = db.create_tender(conn, "/tmp/b.pdf", "b")
+    db.set_tender_status(conn, stuck, "running")
+    db.set_tender_status(conn, done, "awaiting_approval")
+    assert db.reset_stuck_runs(conn) == 1
+    assert (db.get_tender(conn, stuck)["status"], db.get_tender(conn, stuck)["reason"]) == \
+        ("failed", "Server restarted during run")
+    assert db.get_tender(conn, done)["status"] == "awaiting_approval"

@@ -70,6 +70,26 @@ def create_company(conn, name, products, location, turnover, udyam: bool,
 
 
 @_locked
+def update_company(conn, company_id, name, products, location, turnover, udyam: bool,
+                   documents: list[str], past_orders: list[dict]) -> bool:
+    """Replace a company's profile, documents and past orders. False if the id is unknown."""
+    with conn:
+        cur = conn.execute(
+            "UPDATE companies SET name = ?, products = ?, location = ?, turnover = ?, udyam = ? WHERE id = ?",
+            (name, products, location, turnover, int(udyam), company_id))
+        if cur.rowcount == 0:
+            return False
+        conn.execute("DELETE FROM company_documents WHERE company_id = ?", (company_id,))
+        conn.execute("DELETE FROM past_orders WHERE company_id = ?", (company_id,))
+        conn.executemany("INSERT INTO company_documents (company_id, name) VALUES (?, ?)",
+                         [(company_id, d) for d in documents])
+        conn.executemany(
+            "INSERT INTO past_orders (company_id, buyer, item, value, year) VALUES (?, ?, ?, ?, ?)",
+            [(company_id, o["buyer"], o["item"], o["value"], o["year"]) for o in past_orders])
+    return True
+
+
+@_locked
 def get_company(conn, company_id) -> dict | None:
     row = conn.execute("SELECT * FROM companies WHERE id = ?", (company_id,)).fetchone()
     if row is None:
@@ -96,6 +116,12 @@ def get_tender(conn, tender_id) -> dict | None:
 
 
 @_locked
+def list_tenders(conn) -> list[dict]:
+    return [dict(r) for r in conn.execute(
+        "SELECT id, title, deadline, emd, status, reason FROM tenders ORDER BY id DESC")]
+
+
+@_locked
 def set_tender_status(conn, tender_id, status, reason=None):
     """reason: why a run stopped or failed; None clears it."""
     conn.execute("UPDATE tenders SET status = ?, reason = ? WHERE id = ?", (status, reason, tender_id))
@@ -106,6 +132,25 @@ def set_tender_status(conn, tender_id, status, reason=None):
 def set_current_run(conn, tender_id, run_id):
     conn.execute("UPDATE tenders SET current_run_id = ? WHERE id = ?", (run_id, tender_id))
     conn.commit()
+
+
+@_locked
+def claim_run(conn, tender_id, run_id) -> bool:
+    """Atomically mark the tender running for this run; False if a run is already going."""
+    cur = conn.execute(
+        "UPDATE tenders SET status = 'running', current_run_id = ?, reason = NULL"
+        " WHERE id = ? AND status != 'running'", (run_id, tender_id))
+    conn.commit()
+    return cur.rowcount == 1
+
+
+@_locked
+def reset_stuck_runs(conn) -> int:
+    """At startup: runs that were going when the server stopped can never finish."""
+    cur = conn.execute(
+        "UPDATE tenders SET status = 'failed', reason = 'Server restarted during run' WHERE status = 'running'")
+    conn.commit()
+    return cur.rowcount
 
 
 @_locked
@@ -155,6 +200,16 @@ def save_run_output(conn, tender_id, state: dict):
                 (tender_id, state.get("review_rounds", 0), draft.cover_letter,
                  json.dumps([s.model_dump() for s in draft.sections]),
                  review.model_dump_json() if review else None))
+
+
+@_locked
+def update_draft(conn, tender_id, draft: BidDraft):
+    """Overwrite the final draft's text (owner edits); its review stays."""
+    conn.execute(
+        "UPDATE drafts SET cover_letter = ?, sections_json = ? WHERE id = "
+        "(SELECT id FROM drafts WHERE tender_id = ? ORDER BY id DESC LIMIT 1)",
+        (draft.cover_letter, json.dumps([s.model_dump() for s in draft.sections]), tender_id))
+    conn.commit()
 
 
 @_locked
