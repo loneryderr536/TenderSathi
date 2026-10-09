@@ -20,3 +20,6 @@ storage/*
 Thumbs.db
 .vscode/
 .idea/
+
+# Agent workflow scratch
+.superpowers/
