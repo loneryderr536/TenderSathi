@@ -31,7 +31,7 @@ def _bullets(lines: list[str]) -> str:
 
 
 def draft_bid(facts: TenderFacts, business: list[str], notes: list[str]) -> BidDraft:
-    """One Sonnet call; reviewer notes (if any) are passed in to be fixed."""
+    """One call; reviewer notes (if any) are passed in to be fixed."""
     note_block = f"\nReviewer notes - fix every one of these:\n{_bullets(notes)}" if notes else ""
     prompt = PROMPT.format(
         price=PRICE_PLACEHOLDER, deadline=facts.deadline, emd=facts.emd, payment_terms=facts.payment_terms,

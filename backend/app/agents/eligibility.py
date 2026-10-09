@@ -18,7 +18,7 @@ Business evidence:
 
 
 def judge_eligibility(rules: list[Rule], evidence: list[str]) -> EligibilityResult:
-    """One Haiku call for all rules; any rule the model leaves out comes back as 'missing'."""
+    """One call for all rules; any rule the model leaves out comes back as 'missing'."""
     if not rules:
         return EligibilityResult(verdicts=[])
     rule_lines = "\n".join(

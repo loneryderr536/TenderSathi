@@ -12,7 +12,7 @@ def run(monkeypatch, notes):
     return fake, draft_bid(FACTS, ["Company: Ernakulam Woodworks"], notes)
 
 
-def test_one_sonnet_call_with_facts_and_business(monkeypatch):
+def test_one_call_with_facts_and_business(monkeypatch):
     fake, draft = run(monkeypatch, [])
     assert draft == DRAFT
     assert fake.agents == ["drafter"] and len(fake.calls) == 1 and fake.calls[0][0] is schemas.BidDraft

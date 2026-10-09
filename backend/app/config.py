@@ -6,19 +6,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-HAIKU = "claude-haiku-5-5"
-SONNET = "claude-sonnet-5-5"
+GPT_OSS_120B = "openai/gpt-oss-120b"
+QWEN = "qwen/qwen3.8-27b"
 
-# Haiku for the read/extract/check agents, Sonnet for writing and reviewing.
+# All agents run on Groq. Each Groq model has its own tokens-per-minute limit,
+# so spreading agents across models also spreads the load.
 AGENT_MODELS = {
-    "reader": HAIKU,
-    "eligibility": HAIKU,
-    "checklist": HAIKU,
-    "drafter": SONNET,
-    "reviewer": SONNET,
-    "tracker": SONNET,
+    "reader": GPT_OSS_120B,
+    "eligibility": QWEN,
+    "checklist": GPT_OSS_120B,
+    "drafter": GPT_OSS_120B,
+    "reviewer": GPT_OSS_120B,
+    "tracker": GPT_OSS_120B,
 }
-
 
 def model_for(agent: str) -> str:
     """Model name for an agent; <AGENT>_MODEL in the environment overrides the default."""

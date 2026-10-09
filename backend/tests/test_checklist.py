@@ -49,3 +49,10 @@ def test_doc_missing_from_both_passes_is_need(monkeypatch):
 def test_no_required_docs_no_call(monkeypatch):
     fake, result = run(monkeypatch, [], required=[])
     assert result.items == [] and fake.calls == []
+
+
+def test_prompts_require_the_exact_file_name(monkeypatch):
+    item = Item(document="GST certificate", status="have", matched_file="gst.pdf")
+    fake, _ = run(monkeypatch, [Checklist(items=[item]), Checklist(items=[item])], required=["GST certificate"])
+    for _, prompt in fake.calls:
+        assert "copy the stored file name exactly into matched_file" in str(prompt)
