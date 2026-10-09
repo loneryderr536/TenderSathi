@@ -121,9 +121,10 @@ flowchart TD
 | **Website (frontend)** | React (JavaScript), Vite, Tailwind CSS |
 | **Pages and data loading** | React Router, TanStack Query |
 | **Server (backend)** | Python, FastAPI |
-| **Agents** | Plain Python: one function per agent, one manager that runs them in order |
-| **Checked agent outputs** | Pydantic (every agent must return a fixed shape; bad output is retried) |
-| **AI model** | Paid LLM API, behind one small `llm.py` file so the provider can be swapped |
+| **Agent orchestration** | LangGraph (a graph with a stop branch and a review loop) |
+| **Agents and AI calls** | LangChain chat models, one node per agent |
+| **Checked agent outputs** | Pydantic, via LangChain structured output |
+| **AI model** | Paid LLM API, chosen in one small `llm.py` file so the provider can be swapped |
 | **Reading PDFs** | PyMuPDF |
 | **Vector memory** | ChromaDB (runs inside the app, no server needed) |
 | **App data and agent log** | SQLite |

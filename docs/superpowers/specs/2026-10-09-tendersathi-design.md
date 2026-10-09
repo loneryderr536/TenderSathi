@@ -107,14 +107,18 @@ TenderSathi covers steps 2 to 4.
 - Malayalam and Hindi interface.
 - Price guidance from past winning bids.
 - Pointers to working-capital options after a win.
-- Upgrade the plain-Python manager to LangGraph for retries, branching and persistence at scale.
+- LangGraph checkpointing so long runs can pause and resume across server restarts.
 
 ---
 
 ## 6. The agents
 
-Each agent is a **plain Python function** with one job, its own short prompt, and a **checked output**
-(a Pydantic model). A **manager** function runs them in order. No agent framework is needed.
+Each agent is a **LangGraph node**: a normal Python function `(state) -> updates` with one job, its own
+short prompt, and a **checked output**. Inside each node, a **LangChain chat model** is called with
+`.with_structured_output(PydanticModel)`, so the LLM must return the exact shape the next agent expects.
+
+LangGraph is used in a **thin** way: one `StateGraph`, five nodes, two conditional edges. No LangChain
+tool-calling agents, no supervisor agent, no checkpointer.
 
 | Agent | Reads | Does | Returns |
 |---|---|---|---|
@@ -127,28 +131,72 @@ Each agent is a **plain Python function** with one job, its own short prompt, an
 
 ### Two decisions that make it "autonomous"
 
-1. **Eligibility can stop the run.** If the business clearly **fails a must-have rule**, the manager
-   skips drafting and shows the owner why. This saves time and money.
+1. **Eligibility can stop the run.** If the business clearly **fails a must-have rule**, a conditional
+   edge sends the graph to a Stop node that explains why. This saves time and money.
 2. **Reviewer can send the draft back.** If a mandatory rule is not covered, the draft goes back to the
    Drafter with notes, **up to 2 rounds**. If gaps remain, they are shown to the owner.
 
-### Manager (pseudocode)
+### The graph
+
+```
+START → Reader → Eligibility ──must-have fail──→ Stop (explain why) → END
+                     │ qualifies
+                     ▼
+                 Checklist → Drafter → Reviewer ──gaps and rounds < 2──→ Drafter
+                                           │ all covered, or 2 rounds done
+                                           ▼
+                                   Awaiting approval → END
+```
+
+### Graph code (sketch)
 
 ```python
-def run_pipeline(tender_id, company_id):
-    facts = reader_agent(tender_id)
-    verdicts = eligibility_agent(facts, company_id)
-    if verdicts.has_must_have_fail:
-        return stop(reason=verdicts.summary)        # decision 1
-    checklist = checklist_agent(facts, company_id)
-    draft = drafter_agent(facts, company_id)
-    for round in range(2):                          # decision 2
-        review = reviewer_agent(draft, facts)
-        if review.all_covered:
-            break
-        draft = drafter_agent(facts, company_id, fix_notes=review.gaps)
-    return wait_for_approval(draft, review, checklist)
+from typing import TypedDict
+from langgraph.graph import StateGraph, START, END
+
+class TenderState(TypedDict, total=False):
+    tender_id: int
+    company_id: int
+    facts: TenderFacts            # Pydantic models from schemas.py
+    verdicts: EligibilityResult
+    checklist: Checklist
+    draft: BidDraft
+    review: ReviewResult
+    review_rounds: int
+    status: str                   # running / stopped / awaiting_approval / failed
+
+g = StateGraph(TenderState)
+g.add_node("reader", reader_node)
+g.add_node("eligibility", eligibility_node)
+g.add_node("stop", stop_node)
+g.add_node("checklist", checklist_node)
+g.add_node("drafter", drafter_node)
+g.add_node("reviewer", reviewer_node)
+g.add_node("await_approval", await_approval_node)
+
+g.add_edge(START, "reader")
+g.add_edge("reader", "eligibility")
+g.add_conditional_edges("eligibility",            # decision 1
+    lambda s: "stop" if s["verdicts"].has_must_have_fail else "checklist")
+g.add_edge("stop", END)
+g.add_edge("checklist", "drafter")
+g.add_edge("drafter", "reviewer")
+g.add_conditional_edges("reviewer",               # decision 2
+    lambda s: "drafter" if (not s["review"].all_covered and s["review_rounds"] < 2)
+              else "await_approval")
+g.add_edge("await_approval", END)
+
+graph = g.compile()
 ```
+
+**Approval:** the graph simply ends with `status = "awaiting_approval"`. The `/approve` endpoint marks
+the tender approved. This avoids LangGraph's interrupt/checkpointer machinery.
+
+**Agent log:** each node writes one line to the SQLite `agent_log` table when it starts and finishes,
+which the website polls.
+
+**Fallback:** nodes are plain functions, so if LangGraph causes trouble, a 20-line Python loop can call
+the same functions in the same order.
 
 ### Where RAG and vector memory are used
 
@@ -162,16 +210,18 @@ def run_pipeline(tender_id, company_id):
 
 ## 7. Tech stack
 
-Chosen to be **simple, reliable and doable solo** by someone new to multi-agent systems.
+Chosen to be **simple, reliable and doable solo** by someone new to multi-agent systems. LangChain and
+LangGraph are used only for the parts they make easier: structured LLM output and a visible graph.
 
 | Part | Choice | Why |
 |---|---|---|
 | Frontend | **React (JavaScript) + Vite + Tailwind CSS** | Simple single-page app; fast dev loop; no TypeScript to fight |
 | Pages / API calls | React Router, TanStack Query | Easy routing and loading states |
 | Backend | **Python + FastAPI** | Builder has shipped FastAPI before; Python has the best PDF and AI libraries |
-| Agents | **Plain Python functions + one manager** | Nothing new to learn; easy to debug |
-| Agent outputs | **Pydantic** | Every agent must return a fixed shape; malformed output is caught and retried |
-| AI model | Paid LLM API behind one `llm.py` wrapper | Best reasoning quality; switch provider in one line |
+| Orchestration | **LangGraph** (`StateGraph`) | The flow has a branch and a loop; a graph shows them clearly and is easy to explain to judges |
+| LLM calls | **LangChain chat model** (`langchain-anthropic` or `langchain-openai`) | One interface for any provider; built-in retries |
+| Agent outputs | **Pydantic** via `.with_structured_output()` | Every agent must return a fixed shape; malformed output is caught |
+| AI model | Paid LLM API, chosen in `llm.py` | Best reasoning quality; switch provider in one line |
 | PDF reading | **PyMuPDF** | One install, fast, reliable for text PDFs |
 | Vector memory | **ChromaDB** (embedded) | No server to run; builder has used it before |
 | App data + agent log | **SQLite** | A single file, zero setup |
@@ -189,10 +239,10 @@ multilingual model when Hindi/Malayalam tenders are supported.
 ## 8. Architecture
 
 ```
-React app  ──HTTP──►  FastAPI  ──►  Manager  ──►  Agents  ──►  LLM API
-   │                    │              │
-   │  poll /log         │              ├──► ChromaDB (clauses + business memory)
-   └────────────────────┘              └──► SQLite (data + agent log)
+React app  ──HTTP──►  FastAPI  ──►  LangGraph graph  ──►  Agent nodes  ──►  LLM API (via LangChain)
+   │                    │                  │
+   │  poll /log         │                  ├──► ChromaDB (clauses + business memory)
+   └────────────────────┘                  └──► SQLite (data + agent log)
 ```
 
 ### Folder layout (already created in the repo)
@@ -201,13 +251,13 @@ React app  ──HTTP──►  FastAPI  ──►  Manager  ──►  Agents  
 backend/app/
   main.py          FastAPI app
   config.py        settings from .env
-  llm.py           LLM wrapper
+  llm.py           returns the LangChain chat model for the chosen provider
   db.py            SQLite tables
   memory.py        ChromaDB helpers
   pdf_reader.py    PDF → pages → clauses
   schemas.py       Pydantic output models
-  manager.py       runs the agents
-  agents/          reader, eligibility, checklist, drafter, reviewer, tracker
+  graph.py         LangGraph StateGraph: nodes, edges, decisions
+  agents/          one node function each: reader, eligibility, checklist, drafter, reviewer, tracker
   routes/          companies, tenders
 frontend/          React app
 data/              sample tender PDFs and demo business profile
@@ -299,7 +349,7 @@ submits.
 | Situation | What happens |
 |---|---|
 | PDF has no extractable text (scanned) | Upload is rejected with "This looks like a scanned PDF; please use a text PDF" |
-| LLM returns malformed output | Pydantic validation fails → retry once with the error → if it fails again, the run stops with a clear message in the agent log |
+| LLM returns malformed output | Structured-output parsing fails → node retries once → if it fails again, status becomes `failed` with a clear message in the agent log |
 | LLM API error / timeout | Retry once after a short wait; then mark the run failed and show the error |
 | Business clearly fails a must-have rule | Run stops after Eligibility, with the reason (by design) |
 | Reviewer still finds gaps after 2 rounds | Draft is shown with the gaps highlighted for the owner |
@@ -311,8 +361,9 @@ The final bid is **never** produced without the owner's approval.
 
 ## 13. Testing
 
-- **Unit tests (pytest)** for the non-AI parts: PDF → clauses, manager decisions (stop on fail, max
-  2 review rounds) using fake agents, database helpers.
+- **Unit tests (pytest)** for the non-AI parts: PDF → clauses, database helpers, and the **graph's
+  routing** (stop on a must-have fail, max 2 review rounds) using fake node functions that return set
+  values.
 - **Fixture test:** one real tender PDF with a known answer sheet (expected rules and verdicts),
   checked by hand after each prompt change.
 - **Demo rehearsal:** run the full demo end to end at least twice before judging.
@@ -323,9 +374,9 @@ The final bid is **never** produced without the owner's approval.
 
 | Hours | Work |
 |---|---|
-| 0–1 | **Spike:** one real tender PDF → Reader + Eligibility in a script. Confirms the core works. |
+| 0–1 | **Spike:** one real tender PDF → a 2-node LangGraph (Reader → Eligibility). Confirms the core and LangGraph both work. |
 | 1–2 | Collect 3 demo tender PDFs (text PDFs) and write the sample business profile |
-| 2–7 | Backend: SQLite, ChromaDB, PDF reader, all agents, manager with both decisions |
+| 2–7 | Backend: SQLite, ChromaDB, PDF reader, all agent nodes, the graph with both decisions |
 | 7–9 | API routes, background run, agent log |
 | 9–15 | Frontend: four screens, polling log, approve & export |
 | 15–17 | Tests and error handling |
@@ -355,7 +406,8 @@ The final bid is **never** produced without the owner's approval.
 |---|---|
 | Messy or scanned tender PDFs | Choose clean text PDFs for the demo; OCR is future scope |
 | Long tenders exceed context | Clause chunks in ChromaDB; agents read only relevant clauses |
-| "Is it really multi-agent?" | Show the two decisions (stop on fail, reviewer send-back) live |
+| "Is it really multi-agent?" | Show the LangGraph diagram and the two decisions (stop on fail, reviewer send-back) live |
+| LangGraph learning curve | Thin usage only; tested in the hour-0 spike; plain-Python loop as fallback |
 | "Isn't this a middleman?" | No commission, no government contact, owner submits |
 | "What if they can't fund the order?" | Payment terms shown up front; focus user stated honestly |
 | Per-bid price | Exact amount not decided; set before any real launch |
