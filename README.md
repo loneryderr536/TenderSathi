@@ -167,7 +167,9 @@ npm run dev
 
 Optional extras:
 
-- **Sample data:** `python scripts/load_demo_data.py` loads a sample business profile and demo tenders.
+- **Sample data:** from the project folder, run `backend/.venv/bin/python scripts/load_demo_data.py`.
+  It loads a sample business profile and every PDF in `data/tenders/`, then prints a link
+  (`http://localhost:5173/?company=1`). Open that link once so the website uses the sample profile.
 - **Run the tests:** `cd backend && pytest`
 
 ---
@@ -195,8 +197,10 @@ Today, small businesses face these problems when bidding for government work. Te
 
 - TenderSathi is **a tool, not a middleman**. It never contacts the government, never submits bids
   and never takes a share of any contract.
-- The demo uses **real tender PDFs downloaded by hand** from public portals. Live ingestion from
-  official tender feeds is planned.
+- The repo ships **three sample tenders** (fictional buyers, marked "SAMPLE TENDER" on every page):
+  one the sample business qualifies for, one it fails, and one with staged payment. Add real tender
+  PDFs downloaded by hand from public portals to `data/tenders/` and the loader picks them up.
+  Live ingestion from official tender feeds is planned.
 - The **final price is always set by the business owner**. TenderSathi does not suggest bid prices yet.
 - Eligibility checks help the owner decide, but **the tender document is always the final word**.
   Always read the flagged clauses before submitting.
