@@ -104,3 +104,16 @@ it("keeps showing the tender when one poll fails", async () => {
   await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Internal Server Error"));
   expect(screen.getByRole("heading", { name: "School desks" })).toBeInTheDocument();
 });
+
+it("opens the tab named in the link", async () => {
+  mockApi({ "GET /tenders/5/result": result(), "GET /tenders/5/log": [] });
+  renderPage(<TenderPage />, { path: "/tenders/:id", route: "/tenders/5?tab=checklist" });
+  expect(await screen.findByRole("tab", { name: "Checklist" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByText("You still need it")).toBeInTheDocument();
+});
+
+it("falls back to Summary for an unknown tab", async () => {
+  mockApi({ "GET /tenders/5/result": result(), "GET /tenders/5/log": [] });
+  renderPage(<TenderPage />, { path: "/tenders/:id", route: "/tenders/5?tab=nope" });
+  expect(await screen.findByRole("tab", { name: "Summary" })).toHaveAttribute("aria-selected", "true");
+});

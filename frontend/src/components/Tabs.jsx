@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-/** tabs: [{ label, content }] */
-export default function Tabs({ tabs }) {
-  const [active, setActive] = useState(0);
+/** tabs: [{ label, content }]; initial: index of the tab to show first. */
+export default function Tabs({ tabs, initial = 0 }) {
+  const [active, setActive] = useState(initial);
   return (
     <div className="rounded-xl border border-stone-200 bg-white shadow-sm">
       <div role="tablist" className="flex overflow-x-auto border-b border-stone-200">
