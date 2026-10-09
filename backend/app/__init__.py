@@ -1,0 +1,1 @@
+"""TenderSathi backend package."""
