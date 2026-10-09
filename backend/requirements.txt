@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+python-dotenv
+pymupdf
+chromadb
+pytest
+# LLM provider SDK: keep the one matching your API key
+anthropic
+openai
