@@ -1,5 +1,6 @@
 """Loads settings from .env (API key, model names, storage paths)."""
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -24,3 +25,15 @@ def model_for(agent: str) -> str:
     if agent not in AGENT_MODELS:
         raise ValueError(f"Unknown agent: {agent}")
     return os.environ.get(f"{agent.upper()}_MODEL") or AGENT_MODELS[agent]
+
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+
+def storage_dir() -> Path:
+    """STORAGE_DIR from .env (relative paths are relative to backend/), created if missing."""
+    path = Path(os.environ.get("STORAGE_DIR") or "../storage")
+    if not path.is_absolute():
+        path = (BACKEND_DIR / path).resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    return path
