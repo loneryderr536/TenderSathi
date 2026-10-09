@@ -118,7 +118,7 @@ flowchart TD
 
 | Part | What we used |
 |---|---|
-| **Website (frontend)** | React, Vite, TypeScript, Tailwind CSS, shadcn/ui |
+| **Website (frontend)** | React (JavaScript), Vite, Tailwind CSS |
 | **Pages and data loading** | React Router, TanStack Query |
 | **Server (backend)** | Python, FastAPI |
 | **Agents** | Plain Python: one function per agent, one manager that runs them in order |
