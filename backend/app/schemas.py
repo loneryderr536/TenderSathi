@@ -4,6 +4,12 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+class Clause(BaseModel):
+    text: str
+    clause: str  # heading number like "4.1"; "" for text before the first heading
+    page: int
+
+
 class Rule(BaseModel):
     text: str
     clause: str
@@ -45,3 +51,29 @@ class ChecklistItem(BaseModel):
 
 class Checklist(BaseModel):
     items: list[ChecklistItem]
+
+
+class Section(BaseModel):
+    title: str
+    body: str
+
+
+class BidDraft(BaseModel):
+    cover_letter: str
+    sections: list[Section]
+
+
+class ComplianceRow(BaseModel):
+    rule_text: str
+    must_have: bool
+    covered: bool
+    where: str  # which part of the draft answers the rule; "" if none
+
+
+class ReviewResult(BaseModel):
+    matrix: list[ComplianceRow]
+    gaps: list[str]  # must-have rules the draft does not cover
+
+    @property
+    def all_covered(self) -> bool:
+        return not self.gaps

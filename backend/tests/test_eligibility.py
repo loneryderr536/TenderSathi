@@ -62,3 +62,13 @@ def test_citation_and_must_have_come_from_reader(monkeypatch):
     assert (v.verdict, v.reason) == ("fail", "low turnover")
     assert (v.clause, v.page, v.must_have) == ("4.1", 1, True)
     assert result.has_must_have_fail is True
+
+
+def test_rule_echoed_with_small_changes_still_matches(monkeypatch):
+    r = rule(1)
+    echoed = schemas.RuleVerdict(rule_text="  rule 1. ", verdict="fail", reason="no",
+                                 clause=r.clause, page=r.page, must_have=True)
+    fake = FakeLLM([schemas.EligibilityResult(verdicts=[echoed])])
+    monkeypatch.setattr(llm, "get_llm", fake.factory)
+    v = judge_eligibility([r], ["x"]).verdicts[0]
+    assert (v.rule_text, v.verdict) == ("Rule 1", "fail")

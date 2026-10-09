@@ -1,5 +1,6 @@
 """Eligibility agent: pass/fail/missing per rule, with clause citations; can stop the run."""
 from app import llm
+from app.agents.matching import index_by_rule, rule_key
 from app.schemas import EligibilityResult, Rule, RuleVerdict
 
 PROMPT = """You are checking whether a small business qualifies for a government tender.
@@ -27,10 +28,10 @@ def judge_eligibility(rules: list[Rule], evidence: list[str]) -> EligibilityResu
     model = llm.get_llm("eligibility").with_structured_output(EligibilityResult)
     judged = model.invoke(PROMPT.format(rules=rule_lines, evidence="\n".join(f"- {e}" for e in evidence)))
 
-    by_text = {v.rule_text: v for v in judged.verdicts}
+    by_text = index_by_rule(judged.verdicts, lambda v: v.rule_text)
     verdicts = []
     for r in rules:
-        v = by_text.get(r.text)
+        v = by_text.get(rule_key(r.text))
         # Citation and must-have flag come from the Reader, not the model's echo of them.
         verdicts.append(RuleVerdict(
             rule_text=r.text,
