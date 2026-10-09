@@ -63,3 +63,20 @@ def test_cors_origins_from_env(monkeypatch, tmp_path):
     c = TestClient(create_app(db.connect(":memory:"), None, tmp_path))
     assert preflight(c, "http://192.168.1.20:5173").headers.get("access-control-allow-origin") == "http://192.168.1.20:5173"
     assert "access-control-allow-origin" not in preflight(c, "http://localhost:5173").headers
+
+
+def test_startup_warms_up_memory(tmp_path):
+    from fastapi.testclient import TestClient
+    from app import db
+    from app.main import create_app
+
+    class FakeMem:
+        warmed = False
+
+        def warm_up(self):
+            FakeMem.warmed = True
+            return True
+
+    with TestClient(create_app(db.connect(":memory:"), FakeMem(), tmp_path)):
+        pass
+    assert FakeMem.warmed
