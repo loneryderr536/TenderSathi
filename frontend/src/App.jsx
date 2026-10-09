@@ -1,4 +1,6 @@
-import { NavLink, Route, Routes } from "react-router";
+import { useEffect } from "react";
+import { NavLink, Route, Routes, useSearchParams } from "react-router";
+import { setCompanyId } from "./api";
 import ApprovePage from "./pages/ApprovePage";
 import InboxPage from "./pages/InboxPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -18,7 +20,20 @@ function NavItem({ to, children }) {
   );
 }
 
+/** The demo loader prints a link with ?company=<id>; opening it once makes the site use that profile. */
+function useCompanyFromLink() {
+  const [params, setParams] = useSearchParams();
+  const company = params.get("company");
+  useEffect(() => {
+    if (company === null) return;
+    if (/^\d+$/.test(company)) setCompanyId(Number(company));
+    params.delete("company");
+    setParams(params, { replace: true });
+  }, [company, params, setParams]);
+}
+
 export default function App() {
+  useCompanyFromLink();
   return (
     <div className="min-h-screen">
       <header className="bg-brand-900">
