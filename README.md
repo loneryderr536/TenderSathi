@@ -124,7 +124,7 @@ flowchart TD
 | **Agent orchestration** | LangGraph (a graph with a stop branch and a review loop) |
 | **Agents and AI calls** | LangChain chat models, one node per agent |
 | **Checked agent outputs** | Pydantic, via LangChain structured output |
-| **AI model** | Paid LLM API, chosen in one small `llm.py` file so the provider can be swapped |
+| **AI model** | Groq: `openai/gpt-oss-120b` for most agents, `qwen/qwen3.8-27b` for eligibility (set per agent in `config.py`) |
 | **Reading PDFs** | PyMuPDF |
 | **Vector memory** | ChromaDB (runs inside the app, no server needed) |
 | **App data and agent log** | SQLite |
@@ -143,7 +143,7 @@ You need **Python 3.11** and **Node.js 18+**. Run these from the project folder.
 cp .env.example .env
 ```
 
-Open `.env` and add your LLM API key.
+Open `.env` and add your Groq API key (`GROQ_API_KEY`, from console.groq.com).
 
 **2. Start the server**
 

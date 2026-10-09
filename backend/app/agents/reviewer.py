@@ -18,7 +18,7 @@ Draft sections:
 
 
 def review_draft(draft: BidDraft, rules: list[Rule]) -> ReviewResult:
-    """One Sonnet call; gaps are computed here from the must-have rules, not taken from the model."""
+    """One call; gaps are computed here from the must-have rules, not taken from the model."""
     prompt = PROMPT.format(
         rules="\n".join(f"- {r.text} (clause {r.clause})" for r in rules),
         cover_letter=draft.cover_letter,

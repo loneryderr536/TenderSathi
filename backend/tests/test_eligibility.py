@@ -72,3 +72,25 @@ def test_rule_echoed_with_small_changes_still_matches(monkeypatch):
     monkeypatch.setattr(llm, "get_llm", fake.factory)
     v = judge_eligibility([r], ["x"]).verdicts[0]
     assert (v.rule_text, v.verdict) == ("Rule 1", "fail")
+
+
+def test_rule_echoed_with_clause_number_still_matches(monkeypatch):
+    r = schemas.Rule(text="Average annual turnover of Rs 60 lakh", clause="4.1", page=1, must_have=True)
+    echoed = schemas.RuleVerdict(rule_text="4.1 Average annual turnover of Rs 60 lakh", verdict="pass",
+                                 reason="₹1.4 crore", clause="4.1", page=1, must_have=True)
+    fake = FakeLLM([schemas.EligibilityResult(verdicts=[echoed])])
+    monkeypatch.setattr(llm, "get_llm", fake.factory)
+    assert judge_eligibility([r], ["x"]).verdicts[0].verdict == "pass"
+
+
+def test_rule_key_strips_leading_clause_numbers():
+    from app.agents.matching import rule_key
+    assert rule_key("4.1 Turnover") == rule_key("Clause 4.1: Turnover") == rule_key("4.1. turnover") == "turnover"
+    assert rule_key("3 years of experience") == "3 years of experience"     # a number that is part of the rule
+
+
+def test_rule_key_strips_the_clause_suffix_our_prompts_add():
+    from app.agents.matching import rule_key
+    assert rule_key("Turnover of Rs 1 crore. Mandatory. (clause 4.1)") == rule_key("Turnover of Rs 1 crore. Mandatory.")
+    assert rule_key("Turnover (clause 4.1, page 7, must-have)") == "turnover"
+    assert rule_key("Registered under Udyam (reserved for MSEs)") == "registered under udyam reserved for mses"
