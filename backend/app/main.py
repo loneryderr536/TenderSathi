@@ -28,7 +28,7 @@ def create_app(conn=None, mem=None, storage_dir: Path | None = None) -> FastAPI:
 
     app = FastAPI(title="TenderSathi", lifespan=lifespan)
     app.state.conn, app.state.mem, app.state.storage_dir = conn, mem, storage_dir
-    app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"],
+    app.add_middleware(CORSMiddleware, allow_origins=config.cors_origins(),
                        allow_methods=["*"], allow_headers=["*"])
     app.include_router(companies.router)
     app.include_router(tenders.router)
