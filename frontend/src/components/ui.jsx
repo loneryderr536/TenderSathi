@@ -1,4 +1,5 @@
 /** Small shared building blocks. */
+import { countdown } from "../deadline";
 
 export function Card({ title, children, actions }) {
   return (
@@ -55,6 +56,7 @@ const STATUS = {
   failed: ["Failed", "bg-red-100 text-red-800"],
   awaiting_approval: ["Ready for review", "bg-sky-100 text-sky-800"],
   approved: ["Approved", "bg-brand-100 text-brand-700"],
+  changed: ["Tender changed", "bg-amber-100 text-amber-800"],
 };
 
 export function StatusBadge({ status }) {
@@ -71,4 +73,12 @@ const VERDICT = {
 export function VerdictBadge({ verdict }) {
   const [label, style] = VERDICT[verdict] || [verdict, "bg-stone-100"];
   return <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${style}`}>{label}</span>;
+}
+
+/** "21 days left" / "Due today" / "Deadline passed"; red when due within 3 days. */
+export function Countdown({ deadlineAt }) {
+  const c = countdown(deadlineAt);
+  if (!c) return null;
+  const style = c.urgent ? "font-semibold text-red-700" : c.passed ? "text-stone-500" : "text-stone-600";
+  return <span className={`text-xs ${style}`}>{c.label}</span>;
 }

@@ -4,7 +4,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { clearCompanyId, getCompanyId, isCompanyGone, pollInterval, request } from "../api";
 import AgentLog from "../components/AgentLog";
 import Tabs from "../components/Tabs";
-import { Button, ErrorMessage, StatusBadge, VerdictBadge } from "../components/ui";
+import { Button, Countdown, ErrorMessage, Field, StatusBadge, VerdictBadge, inputClass } from "../components/ui";
 
 const Empty = ({ children }) => <p className="text-sm text-stone-500">{children}</p>;
 
@@ -160,6 +160,64 @@ function RunControls({ id, status }) {
 
 const TAB_NAMES = ["summary", "eligibility", "checklist", "draft", "compliance"];
 
+function ChangesBanner({ changes, status }) {
+  if (!changes) return null;
+  return (
+    <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <h2 className="mb-2 font-semibold">This tender was changed (corrigendum)</h2>
+      {changes.changes.length === 0 ? (
+        <p>No changes that matter to your bid were found.</p>
+      ) : (
+        <ul className="space-y-2">
+          {changes.changes.map((c, i) => (
+            <li key={i}>
+              <p>{c.summary}</p>
+              <p className="text-xs text-amber-800">{`${c.before} → ${c.after}`}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      {changes.affects_eligibility && (
+        <p className="mt-2 font-medium">Eligibility rules changed: check the eligibility report again.</p>
+      )}
+      {status === "changed" && <p className="mt-2">Run the agents again to update your bid for the new version.</p>}
+    </section>
+  );
+}
+
+function CorrigendumForm({ id }) {
+  const [file, setFile] = useState(null);
+  const queryClient = useQueryClient();
+  const upload = useMutation({
+    mutationFn: () => {
+      const form = new FormData();
+      form.append("file", file);
+      return request(`/tenders/${id}/corrigendum`, { method: "POST", form });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tender", id] }),
+  });
+  return (
+    <form
+      className="flex flex-wrap items-end gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
+      onSubmit={(e) => {
+        e.preventDefault();
+        upload.mutate();
+      }}
+    >
+      <div className="min-w-60 flex-1">
+        <Field label="Changed tender PDF (corrigendum)">
+          <input type="file" accept="application/pdf,.pdf" className={inputClass}
+                 onChange={(e) => setFile(e.target.files[0] || null)} />
+        </Field>
+      </div>
+      <Button type="submit" variant="secondary" disabled={!file || upload.isPending}>
+        {upload.isPending ? "Comparing…" : "Check what changed"}
+      </Button>
+      <div className="w-full"><ErrorMessage error={upload.error} /></div>
+    </form>
+  );
+}
+
 export default function TenderPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
@@ -184,7 +242,7 @@ export default function TenderPage() {
   if (!result.data) {
     return result.error ? <ErrorMessage error={result.error} /> : <p className="text-sm text-stone-500">Loading…</p>;
   }
-  const { tender, facts, verdicts, checklist, draft, review } = result.data;
+  const { tender, facts, verdicts, checklist, draft, review, changes } = result.data;
 
   return (
     <div className="space-y-6">
@@ -193,6 +251,7 @@ export default function TenderPage() {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold">{tender.title}</h1>
           <StatusBadge status={tender.status} />
+          <Countdown deadlineAt={tender.deadline_at} />
         </div>
         {tender.reason && (
           <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -201,6 +260,7 @@ export default function TenderPage() {
         )}
         <RunControls id={id} status={tender.status} />
       </div>
+      <ChangesBanner changes={changes} status={tender.status} />
       <AgentLog entries={log.data || []} running={tender.status === "running"} />
       <Tabs
         key={id}
@@ -213,6 +273,7 @@ export default function TenderPage() {
           { label: "Compliance", content: <Compliance review={review} /> },
         ]}
       />
+      {facts && tender.status !== "running" && <CorrigendumForm id={id} />}
     </div>
   );
 }

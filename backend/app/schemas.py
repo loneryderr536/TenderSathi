@@ -77,3 +77,19 @@ class ReviewResult(BaseModel):
     @property
     def all_covered(self) -> bool:
         return not self.gaps
+
+
+class DeadlineInfo(BaseModel):
+    deadline_at: str | None  # "YYYY-MM-DDTHH:MM", or null if the text gives no clear date
+
+
+class Change(BaseModel):
+    field: str      # deadline / emd / payment_terms / rules / required_documents
+    before: str
+    after: str
+    summary: str    # one plain sentence for the owner
+
+
+class TenderChanges(BaseModel):
+    changes: list[Change]
+    affects_eligibility: bool

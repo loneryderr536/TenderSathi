@@ -2,7 +2,7 @@ from app import db
 from app.agents import eligibility
 from tests.samples import FACTS, verdicts
 
-AGENTS = ["reader", "eligibility", "checklist", "drafter", "reviewer", "await_approval"]
+AGENTS = ["reader", "tracker", "eligibility", "checklist", "drafter", "reviewer", "await_approval"]
 
 
 def test_run_end_to_end(client, company, tender, fake_agents):

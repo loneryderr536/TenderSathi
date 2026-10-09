@@ -29,6 +29,7 @@ def fake_nodes(calls, verdict="pass", review=COVERED, checklist=None):
 
     return {
         "reader": node("reader", {"facts": FACTS}),
+        "tracker": node("tracker", {}),
         "eligibility": node("eligibility", {"verdicts": verdicts(verdict)}),
         "stop": node("stop", {"status": "stopped", "stop_reason": "fails turnover"}),
         "checklist": checklist or node("checklist", {"checklist": CHECKLIST}),
@@ -42,7 +43,7 @@ def test_stops_on_must_have_fail(setup):
     conn, tid, cid = setup
     calls = []
     state = run_pipeline(conn, None, tid, cid, nodes=fake_nodes(calls, verdict="fail"))
-    assert calls == ["reader", "eligibility", "stop"]
+    assert calls == ["reader", "tracker", "eligibility", "stop"]
     assert state["status"] == "stopped" and state["stop_reason"] == "fails turnover"
     assert db.get_tender(conn, tid)["status"] == "stopped"
 
@@ -51,7 +52,7 @@ def test_happy_path_one_review(setup):
     conn, tid, cid = setup
     calls = []
     state = run_pipeline(conn, None, tid, cid, nodes=fake_nodes(calls))
-    assert calls == ["reader", "eligibility", "checklist", "drafter", "reviewer", "await_approval"]
+    assert calls == ["reader", "tracker", "eligibility", "checklist", "drafter", "reviewer", "await_approval"]
     assert state["status"] == "awaiting_approval"
     assert db.get_tender(conn, tid)["status"] == "awaiting_approval"
     assert db.get_run_output(conn, tid)["draft"] == DRAFT
@@ -101,7 +102,7 @@ def test_log_has_start_and_finish_per_node(setup):
     conn, tid, cid = setup
     run_pipeline(conn, None, tid, cid, nodes=fake_nodes([]))
     log = [(l["agent"], l["message"]) for l in db.get_log(conn, tid)]
-    names = ["reader", "eligibility", "checklist", "drafter", "reviewer", "await_approval"]
+    names = ["reader", "tracker", "eligibility", "checklist", "drafter", "reviewer", "await_approval"]
     assert log == [pair for n in names for pair in ((n, "started"), (n, "finished"))]
 
 
@@ -110,7 +111,7 @@ def test_reason_and_run_id_saved(setup):
     run_pipeline(conn, None, tid, cid, nodes=fake_nodes([], verdict="fail"), run_id="run-7")
     t = db.get_tender(conn, tid)
     assert (t["reason"], t["current_run_id"]) == ("fails turnover", "run-7")
-    assert {l["agent"] for l in db.get_log(conn, tid, "run-7")} == {"reader", "eligibility", "stop"}
+    assert {l["agent"] for l in db.get_log(conn, tid, "run-7")} == {"reader", "tracker", "eligibility", "stop"}
 
 
 def test_failure_reason_saved(setup):

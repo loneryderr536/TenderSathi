@@ -27,7 +27,8 @@ The business owner reviews it, adds their price, and submits it themselves on th
   and certificates.
 - **Double-checks everything.** A reviewer agent confirms every mandatory rule is answered before
   anything leaves your hands.
-- **Keeps you on time.** Reminds you about deadlines and warns you if the tender is changed later.
+- **Keeps you on time.** Shows how many days are left on every tender, puts the nearest deadline
+  first, and when a tender is changed (corrigendum) lists exactly what changed.
 - **Remembers your business.** Your profile, past orders and documents are stored once, so every
   new bid is faster than the last.
 - **Keeps you in control.** TenderSathi never contacts the government and never submits for you.
@@ -187,7 +188,7 @@ Today, small businesses face these problems when bidding for government work. Te
 - **Help was too expensive.** Consultants charge per bid, so small firms bid rarely. Now the first
   draft is done for them.
 - **Tender changes went unnoticed.** Updates to dates and terms were easy to miss. Now the tracker
-  sends reminders.
+  compares the changed tender with the old one and shows each change.
 - **AI answers could not be trusted.** A plain chatbot can make things up. Here every verdict cites
   the clause it came from, and a human approves before anything is final.
 
