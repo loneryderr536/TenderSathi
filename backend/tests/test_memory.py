@@ -25,13 +25,5 @@ def test_add_clauses_replaces_on_rerun(mem):
     assert mem.search_clauses(1, "turnover", k=10) == [ISO]
 
 
-def test_business_search_and_replace(mem):
-    mem.add_business(1, ["Yearly turnover: ₹1.4 crore", "Holds document: gst.pdf"])
-    mem.add_business(2, ["Yearly turnover: ₹9 crore"])
-    assert mem.search_business(1, "turnover", k=1) == ["Yearly turnover: ₹1.4 crore"]
-    mem.add_business(1, ["Holds document: pan.pdf"])
-    assert mem.search_business(1, "turnover", k=10) == ["Holds document: pan.pdf"]
-
-
 def test_empty_memory_returns_empty(mem):
-    assert mem.search_clauses(5, "anything") == [] and mem.search_business(5, "anything") == []
+    assert mem.search_clauses(5, "anything") == []

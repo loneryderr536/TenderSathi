@@ -50,7 +50,7 @@ def test_end_to_end_awaiting_approval(world):
     state = run_pipeline(conn, mem, tid, cid)
     assert state["status"] == "awaiting_approval"
     assert "[clause 4.1, page 1]" in seen["reader"][0]
-    assert "Yearly turnover: ₹1.4 crore" in seen["eligibility"][1]
+    assert seen["eligibility"][1] == business_lines(db.get_company(conn, cid))   # the whole profile
     assert seen["eligibility"][0] == FACTS.rules
     assert seen["checklist"] == (FACTS.required_documents, ["gst.pdf"])
     assert seen["drafter"] == (FACTS, business_lines(db.get_company(conn, cid)), [])
