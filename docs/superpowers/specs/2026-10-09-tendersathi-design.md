@@ -120,14 +120,14 @@ short prompt, and a **checked output**. Inside each node, a **LangChain chat mod
 LangGraph is used in a **thin** way: one `StateGraph`, five nodes, two conditional edges. No LangChain
 tool-calling agents, no supervisor agent, no checkpointer.
 
-| Agent | Reads | Does | Returns |
-|---|---|---|---|
-| **Reader** | Tender PDF text | Splits it into clauses, stores them in ChromaDB, extracts the key facts | Deadline, EMD, list of rules (each with clause + page), required documents, payment terms |
-| **Eligibility** | Each rule + matching business details (searched from ChromaDB) | Judges each rule | `pass / fail / missing` per rule, with reason and citation; an overall verdict |
-| **Checklist** | Required documents + the business's stored documents | Matches each requirement to a stored file | Have / need list |
-| **Drafter** | Tender facts + business memory | Writes the bid | Cover letter + technical sections |
-| **Reviewer** | Draft + full rule list | Checks every mandatory rule is covered | Compliance matrix + list of gaps |
-| **Tracker** *(stretch)* | Deadlines | Sends reminders | Emails |
+| Agent | Model | Reads | Does | Returns |
+|---|---|---|---|---|
+| **Reader** | Haiku 5.5 (one extraction call) | Tender PDF text | Splits it into clauses, stores them in ChromaDB, extracts the key facts | Deadline, EMD, list of rules (each with clause + page), required documents, payment terms |
+| **Eligibility** | Haiku 5.5 (one call for all rules) | Each rule + matching business details (searched from ChromaDB) | Judges each rule | `pass / fail / missing` per rule, with reason and citation; an overall verdict |
+| **Checklist** | Haiku 5.5 (match, then double-check) | Required documents + the business's stored documents | Matches each requirement to a stored file | Have / need list |
+| **Drafter** | Sonnet 5.5 | Tender facts + business memory | Writes the bid | Cover letter + technical sections |
+| **Reviewer** | Sonnet 5.5 | Draft + full rule list | Checks every mandatory rule is covered | Compliance matrix + list of gaps |
+| **Tracker** *(stretch)* | Sonnet 5.5 | Deadlines | Sends reminders | Emails |
 
 ### Two decisions that make it "autonomous"
 
