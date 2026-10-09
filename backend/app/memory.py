@@ -24,3 +24,11 @@ class Memory:
         result = self.clauses.query(query_texts=[query], n_results=k, where={"tender_id": tender_id})
         return [Clause(text=doc, clause=meta["clause"], page=meta["page"])
                 for doc, meta in zip(result["documents"][0], result["metadatas"][0])]
+
+    def warm_up(self) -> bool:
+        """Run the embedding once, so Chroma's model download (first use only) happens at startup, not mid-demo."""
+        try:
+            self.clauses.query(query_texts=["warm up"], n_results=1)
+            return True
+        except Exception:
+            return False   # offline or broken model: the first real run will report the error

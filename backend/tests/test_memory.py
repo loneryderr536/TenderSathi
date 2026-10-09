@@ -27,3 +27,21 @@ def test_add_clauses_replaces_on_rerun(mem):
 
 def test_empty_memory_returns_empty(mem):
     assert mem.search_clauses(5, "anything") == []
+
+
+def test_warm_up_runs_the_embedding_once(tmp_path):
+    calls = []
+
+    class Counting(HashEmbedding):
+        def __call__(self, input):
+            calls.append(list(input))
+            return super().__call__(input)
+
+    Memory(str(tmp_path), embedding_function=Counting()).warm_up()
+    assert len(calls) == 1
+
+
+def test_warm_up_never_raises(tmp_path, monkeypatch):
+    m = Memory(str(tmp_path), embedding_function=HashEmbedding())
+    monkeypatch.setattr(m.clauses, "query", lambda **kw: (_ for _ in ()).throw(RuntimeError("offline")))
+    assert m.warm_up() is False
