@@ -28,6 +28,8 @@ def agent_metrics(log: list[dict]) -> list[dict]:
             stats[agent]["retries"] += 1
         elif message.startswith("failed"):
             stats[agent]["failures"] += 1
+        elif agent == "scout":   # the Scout writes one line per tender it hands to the agents
+            stats[agent]["runs"] += 1
     order = ["scout", "reader", "tracker", "eligibility", "checklist", "drafter", "reviewer", "stop", "await_approval"]
     return [{"agent": a, "model": config.model_for(a) if a in config.AGENT_MODELS else "none (rules)", "runs": s["runs"],
              "avg_seconds": round(sum(s["seconds"]) / len(s["seconds"]), 1) if s["seconds"] else None,
