@@ -204,8 +204,9 @@ Optional extras:
   (`http://localhost:5173/?company=1`). Open that link once so the website uses the sample profile,
   then press **Find new tenders**: the Scout brings in the five sample tenders from the portal feed
   (`data/feed/portal_feed.json`) and starts the agents on the three that fit.
-- **Demo logins:** the loader also creates one account per view (business owner, government buyer,
-  platform admin), listed in [`data/demo_accounts.json`](data/demo_accounts.json). On the login page,
+- **Demo logins:** the loader also creates one dummy account per dashboard (password `pass123` for all):
+  `john@gmail.com` (business), `mary@gmail.com` (government), `admin@gmail.com` (platform). They are
+  listed in [`data/demo_accounts.json`](data/demo_accounts.json). On the login page,
   choose the dashboard, then log in with that dashboard's account; an account only opens its own
   dashboard. Anyone can sign up as a business owner or a government buyer; platform accounts come only
   from that file.

@@ -11,13 +11,9 @@ const ROLE_CHOICES = [
 ];
 
 export default function SignupPage() {
-  // Dummy details for the hackathon demo, so an account can be made with one click.
-  // The number keeps the email new each time the page is opened.
   const [params] = useSearchParams();
   const [form, setForm] = useState(() => ({
-    name: "Demo User", email: `demo${Math.floor(1000 + Math.random() * 9000)}@tendersathi.demo`,
-    password: "demo-password-2026", role: params.get("as") === "government" ? "government" : "business",
-    department: "Demo Department",
+    name: "", email: "", password: "", role: params.get("as") === "government" ? "government" : "business", department: "",
   }));
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   const { logIn } = useAuth();

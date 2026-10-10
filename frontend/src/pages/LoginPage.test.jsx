@@ -9,15 +9,15 @@ import SignupPage from "./SignupPage";
 
 const withAuth = (page) => <AuthProvider>{page}</AuthProvider>;
 
-it("choosing a dashboard asks for that dashboard's login, empty, without logging in", async () => {
+it("choosing a dashboard shows its login, filled with that dashboard's dummy account, without logging in", async () => {
   localStorage.clear();
   const calls = mockApi({});
   const ui = userEvent.setup();
   renderPage(withAuth(<LoginPage />));
   await ui.click(screen.getByRole("button", { name: /Government dashboard/ }));
   expect(screen.getByText("Log in to the Government dashboard")).toBeInTheDocument();
-  expect(screen.getByLabelText("Email")).toHaveValue("");
-  expect(screen.getByLabelText("Password")).toHaveValue("");
+  expect(screen.getByLabelText("Email")).toHaveValue("mary@gmail.com");
+  expect(screen.getByLabelText("Password")).toHaveValue("pass123");
   expect(calls).toEqual([]);
   expect(getToken()).toBeNull();
   await ui.click(screen.getByRole("button", { name: /Choose another dashboard/ }));
@@ -31,7 +31,9 @@ it("logs in with the chosen dashboard's role and remembers the business", async 
   const ui = userEvent.setup();
   renderPage(withAuth(<LoginPage />));
   await ui.click(screen.getByRole("button", { name: /Business dashboard/ }));
+  await ui.clear(screen.getByLabelText("Email"));
   await ui.type(screen.getByLabelText("Email"), "owner@shop.in");
+  await ui.clear(screen.getByLabelText("Password"));
   await ui.type(screen.getByLabelText("Password"), "long-enough-1");
   await ui.click(screen.getByRole("button", { name: "Log in" }));
   await waitFor(() => expect(getToken()).toBe("t-1"));
@@ -46,8 +48,8 @@ it("shows the backend's refusal when the account belongs to another dashboard", 
   const ui = userEvent.setup();
   renderPage(withAuth(<LoginPage />), { route: "/?as=platform" });
   expect(screen.getByText("Platform accounts are created by the TenderSathi team.")).toBeInTheDocument();
+  await ui.clear(screen.getByLabelText("Email"));
   await ui.type(screen.getByLabelText("Email"), "owner@shop.in");
-  await ui.type(screen.getByLabelText("Password"), "long-enough-1");
   await ui.click(screen.getByRole("button", { name: "Log in" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("This is not a platform account");
   expect(getToken()).toBeNull();
@@ -59,16 +61,18 @@ it("signs up a government buyer with their department", async () => {
   const ui = userEvent.setup();
   renderPage(withAuth(<SignupPage />), { route: "/?as=government" });
   expect(screen.getByLabelText(/Government buyer/)).toBeChecked();   // chosen on the login page
-  await ui.clear(screen.getByLabelText("Department"));
+  await ui.type(screen.getByLabelText("Your name"), "Officer");
   await ui.type(screen.getByLabelText("Department"), "Kuttanad Block Panchayat");
+  await ui.type(screen.getByLabelText("Email"), "officer@gov.in");
+  await ui.type(screen.getByLabelText(/Password/), "long-enough-1");
   await ui.click(screen.getByRole("button", { name: "Create account" }));
   await waitFor(() => expect(getToken()).toBe("t-2"));
   expect(JSON.parse(calls[0].init.body)).toMatchObject({ role: "government", department: "Kuttanad Block Panchayat" });
 });
 
-it("sign-up starts with dummy details filled in", () => {
+it("sign-up starts empty", () => {
   localStorage.clear();
   renderPage(withAuth(<SignupPage />));
-  expect(screen.getByLabelText("Your name")).toHaveValue("Demo User");
-  expect(screen.getByLabelText("Email").value).toMatch(/^demo\d{4}@tendersathi\.demo$/);
+  expect(screen.getByLabelText("Your name")).toHaveValue("");
+  expect(screen.getByLabelText("Email")).toHaveValue("");
 });

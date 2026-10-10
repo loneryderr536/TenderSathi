@@ -54,7 +54,7 @@ def test_demo_accounts_can_log_in():
     for a in accounts:
         user = db.user_by_email(conn, a["email"])
         assert auth.check_password(a["password"], user["password_hash"]) and user["role"] == a["role"]
-    assert db.user_by_email(conn, "owner@tendersathi.demo")["company_id"] == company_id
+    assert db.user_by_email(conn, "john@gmail.com")["company_id"] == company_id
 
 
 def test_portal_feed_lists_every_demo_tender_once():

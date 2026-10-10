@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { request } from "../api";
 import { HOME, useAuth } from "../auth";
-import { DASHBOARDS } from "../dashboards";
+import { DASHBOARDS, DEMO_PASSWORD } from "../dashboards";
 import { Button, Card, ErrorMessage, Field, inputClass } from "../components/ui";
 
 /** Step 1: choose a dashboard. */
@@ -34,8 +34,9 @@ function ChooseDashboard({ onChoose }) {
 
 /** Step 2: the email and password of an account that belongs to the chosen dashboard. */
 function LoginForm({ dashboard, onBack }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  // Hackathon demo: the form starts with this dashboard's dummy account, so it logs in with one click.
+  const [email, setEmail] = useState(dashboard.demoEmail);
+  const [password, setPassword] = useState(DEMO_PASSWORD);
   const { logIn } = useAuth();
   const navigate = useNavigate();
   const login = useMutation({
