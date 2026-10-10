@@ -9,13 +9,13 @@ import SignupPage from "./SignupPage";
 
 const withAuth = (page) => <AuthProvider>{page}</AuthProvider>;
 
-it("logs in with a demo account and remembers the session and the business", async () => {
+it("picking a dashboard logs straight in with its demo account", async () => {
   localStorage.clear();
   const user = { id: 1, email: "owner@tendersathi.demo", name: "Owner", role: "business", company_id: 4, department: null };
   const calls = mockApi({ "POST /auth/login": { token: "t-1", user } });
   const ui = userEvent.setup();
   renderPage(withAuth(<LoginPage />));
-  await ui.click(screen.getByRole("button", { name: "Log in" }));   // the business demo login is pre-filled
+  await ui.click(screen.getByRole("button", { name: /Business dashboard/ }));
   await waitFor(() => expect(getToken()).toBe("t-1"));
   expect(JSON.parse(calls[0].init.body).email).toBe("owner@tendersathi.demo");
   expect(getToken()).toBe("t-1");
@@ -61,4 +61,18 @@ it("login starts with the business demo account filled in", () => {
   renderPage(withAuth(<LoginPage />));
   expect(screen.getByLabelText("Email")).toHaveValue("owner@tendersathi.demo");
   expect(screen.getByLabelText("Password").value).not.toBe("");
+});
+
+it("each dashboard card logs in as its own role", async () => {
+  localStorage.clear();
+  const calls = mockApi({ "POST /auth/login": (init) => {
+    const { email } = JSON.parse(init.body);
+    const role = email.startsWith("officer") ? "government" : "platform";
+    return { token: "t", user: { id: 2, email, name: "X", role, company_id: null, department: null } };
+  } });
+  const ui = userEvent.setup();
+  renderPage(withAuth(<LoginPage />));
+  await ui.click(screen.getByRole("button", { name: /Government dashboard/ }));
+  await waitFor(() => expect(getUser()?.role).toBe("government"));
+  expect(JSON.parse(calls[0].init.body)).toEqual({ email: "officer@tendersathi.demo", password: "government-demo-2026" });
 });
