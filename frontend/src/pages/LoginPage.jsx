@@ -7,8 +7,9 @@ import { DEMO_ACCOUNTS } from "../demoAccounts";
 import { Button, Card, ErrorMessage, Field, inputClass } from "../components/ui";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  // Pre-filled with the business demo login for the hackathon demo; the buttons below switch roles.
+  const [email, setEmail] = useState(DEMO_ACCOUNTS[0].email);
+  const [password, setPassword] = useState(DEMO_ACCOUNTS[0].password);
   const { logIn } = useAuth();
   const navigate = useNavigate();
   const login = useMutation({
