@@ -1,6 +1,6 @@
 """Drafter agent: writes the cover letter and technical bid from business memory."""
 from app import llm
-from app.schemas import BidDraft, TenderFacts
+from app.schemas import BidDraft, Section, TenderFacts
 
 PRICE_PLACEHOLDER = "[PRICE: to be filled by owner]"
 
@@ -39,4 +39,14 @@ def draft_bid(facts: TenderFacts, business: list[str], notes: list[str]) -> BidD
                         for r in facts.rules]),
         documents=_bullets(facts.required_documents), business=_bullets(business), notes=note_block,
     )
-    return llm.get_llm("drafter").with_structured_output(BidDraft).invoke(prompt)
+    draft = llm.get_llm("drafter").with_structured_output(BidDraft).invoke(prompt)
+    return ensure_price_placeholder(draft)
+
+
+def ensure_price_placeholder(draft: BidDraft) -> BidDraft:
+    """The price is the owner's to set: if the model left the marker out, add a Price section with it."""
+    text = draft.cover_letter + "".join(s.body for s in draft.sections)
+    if PRICE_PLACEHOLDER in text:
+        return draft
+    price = Section(title="Price", body=f"Quoted price: {PRICE_PLACEHOLDER}")
+    return draft.model_copy(update={"sections": [*draft.sections, price]})

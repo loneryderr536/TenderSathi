@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
-from app import db, graph, pdf_reader
+from app import db, graph, pdf_reader, relevance
 from app.agents import reader as reader_agent
 from app.agents import tracker as tracker_agent
 from app.routes.deps import get_conn, get_mem, get_storage
@@ -42,8 +42,17 @@ def upload_tender(file: UploadFile = File(...), title: str | None = Form(None),
 
 
 @router.get("")
-def inbox(conn=Depends(get_conn)):
-    return db.list_tenders(conn)
+def inbox(company_id: int | None = None, conn=Depends(get_conn)):
+    """The inbox. With company_id each tender also says whether it fits that business."""
+    tenders = db.list_tenders(conn)
+    if company_id is None:
+        return tenders
+    company = db.get_company(conn, company_id)
+    if company is None:
+        raise HTTPException(404, "Company not found")
+    for t in tenders:
+        t["match"] = relevance.match_tender(company, db.get_tender(conn, t["id"])["pdf_path"], t["title"])
+    return tenders
 
 
 class RunIn(BaseModel):
@@ -163,5 +172,9 @@ def bid_pack_markdown(tender: dict, output: dict) -> str:
         lines += ["## Document checklist", ""]
         lines += [f"- [x] {i.document} ({i.matched_file})" if i.status == "have" else f"- [ ] {i.document}"
                   for i in checklist.items]
+        lines.append("")
+    if output.get("concessions"):
+        lines += ["## Concessions you can claim", ""]
+        lines += [f"- {c.benefit} (clause {c.clause}, page {c.page})" for c in output["concessions"].items]
         lines.append("")
     return "\n".join(lines)

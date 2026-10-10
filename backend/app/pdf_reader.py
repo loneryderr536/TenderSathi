@@ -43,6 +43,8 @@ class ScannedPDFError(ValueError):
 def pdf_to_pages(path: str) -> list[str]:
     """Text of each page, in order. Raises ScannedPDFError when there is no text at all."""
     with pymupdf.open(path) as doc:
+        if not doc.is_pdf:   # PyMuPDF also opens text, XPS and image files
+            raise ValueError("Please upload a PDF file")
         pages = [page.get_text() for page in doc]
     if not any(p.strip() for p in pages):
         raise ScannedPDFError()

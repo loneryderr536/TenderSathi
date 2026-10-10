@@ -1,5 +1,5 @@
 const AGENT_NAMES = {
-  reader: "Reader", eligibility: "Eligibility", checklist: "Checklist", drafter: "Drafter",
+  reader: "Reader", tracker: "Tracker", eligibility: "Eligibility", checklist: "Checklist", drafter: "Drafter",
   reviewer: "Reviewer", stop: "Stop", await_approval: "Ready for approval",
 };
 
