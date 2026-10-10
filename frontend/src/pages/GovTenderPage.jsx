@@ -10,7 +10,7 @@ const STATUS = {
   not_found: ["Not stated", "bg-stone-100 text-stone-700"],
 };
 
-function Fairness({ id, report }) {
+export function Fairness({ id, report }) {
   const queryClient = useQueryClient();
   const run = useMutation({
     mutationFn: () => request(`/gov/tenders/${id}/fairness`, { method: "POST" }),
@@ -63,7 +63,7 @@ function Fairness({ id, report }) {
   );
 }
 
-function Participation({ id, insights }) {
+export function Participation({ id, insights }) {
   const queryClient = useQueryClient();
   const run = useMutation({
     mutationFn: () => request(`/gov/tenders/${id}/screen`, { method: "POST" }),
@@ -134,7 +134,7 @@ function Participation({ id, insights }) {
   );
 }
 
-export default function GovTenderPage() {
+export default function GovTenderPage({ back = "/gov", backLabel = "Buyer dashboard" }) {
   const { id } = useParams();
   const data = useQuery({
     queryKey: ["gov", "tender", id],
@@ -146,7 +146,7 @@ export default function GovTenderPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to="/gov" className="text-sm text-brand-700 hover:underline">← Buyer dashboard</Link>
+        <Link to={back} className="text-sm text-brand-700 hover:underline">← {backLabel}</Link>
         <h1 className="mt-1 text-2xl font-semibold">{tender.title}</h1>
         <p className="text-sm text-stone-600">
           {tender.kind === "draft" ? "Draft, not published yet" : `${tender.buyer} · ${tender.portal} (${tender.source_id})`}

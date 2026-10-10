@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { clearCompanyId, getCompanyId, isCompanyGone, pollInterval, request } from "../api";
+import { useAuth } from "../auth";
 import AgentLog from "../components/AgentLog";
 import Tabs from "../components/Tabs";
 import { Button, Countdown, ErrorMessage, Field, ScoreBadge, StatusBadge, VerdictBadge, inputClass } from "../components/ui";
@@ -250,6 +251,45 @@ function RunControls({ id, status }) {
   );
 }
 
+const QUOTE_STATUS = { submitted: "Sent, waiting for the owner", accepted: "Accepted, you won this order", declined: "Not chosen this time" };
+
+/** A business sends its own price for a private owner's request; TenderSathi never sets the price. */
+function QuoteForm({ id, advance, awarded }) {
+  const queryClient = useQueryClient();
+  const mine = useQuery({ queryKey: ["tender", id, "quote"], queryFn: () => request(`/rfq/${id}/my-quote`) });
+  const [amount, setAmount] = useState("");
+  const [days, setDays] = useState("");
+  const [note, setNote] = useState("");
+  const send = useMutation({
+    mutationFn: () => request(`/rfq/${id}/quote`, { method: "POST", json: { amount: Number(amount), delivery_days: Number(days), note } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tender", id, "quote"] }),
+  });
+  const quote = mine.data;
+  return (
+    <section className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm">
+      <h2 className="font-semibold text-sky-900">Send a quotation</h2>
+      <p className="mt-1 text-sky-900">
+        This is a private request. The owner pays <span className="font-semibold">{advance}% in advance</span> when the order is placed.
+      </p>
+      {quote && (
+        <p className="mt-2 rounded-lg bg-white p-2">
+          Your quotation: <span className="font-semibold">₹{Number(quote.amount).toLocaleString("en-IN")}</span>, delivery in {quote.delivery_days} days ·{" "}
+          <span className="font-medium">{QUOTE_STATUS[quote.status] || quote.status}</span>
+        </p>
+      )}
+      {!awarded && (
+        <form className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end" onSubmit={(e) => { e.preventDefault(); send.mutate(); }}>
+          <Field label="Your price (₹)"><input type="number" min={1} className={inputClass} value={amount} onChange={(e) => setAmount(e.target.value)} required /></Field>
+          <Field label="Delivery (days)"><input type="number" min={1} className={inputClass} value={days} onChange={(e) => setDays(e.target.value)} required /></Field>
+          <Field label="Note (optional)"><input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. seasoned teak, 1 year warranty" /></Field>
+          <Button type="submit" disabled={send.isPending}>{send.isPending ? "Sending…" : quote ? "Update quotation" : "Send quotation"}</Button>
+        </form>
+      )}
+      <div className="mt-2"><ErrorMessage error={send.error} /></div>
+    </section>
+  );
+}
+
 const TAB_NAMES = ["summary", "eligibility", "checklist", "draft", "compliance"];
 
 function ChangesBanner({ changes, status }) {
@@ -312,6 +352,7 @@ function CorrigendumForm({ id }) {
 
 export default function TenderPage() {
   const { id } = useParams();
+  const { user } = useAuth() || {};
   const [params] = useSearchParams();
   const initialTab = Math.max(0, TAB_NAMES.indexOf(params.get("tab")));   // ?tab=checklist opens that tab
   const queryClient = useQueryClient();
@@ -348,7 +389,11 @@ export default function TenderPage() {
           <ScoreBadge score={score} />
         </div>
         {tender.buyer && (
-          <p className="text-sm text-stone-600">{tender.buyer} · found by the Scout on {tender.portal} ({tender.source_id})</p>
+          <p className="text-sm text-stone-600">
+            {tender.kind === "private"
+              ? `${tender.buyer} · request for quotation posted on TenderSathi`
+              : `${tender.buyer} · found by the Scout on ${tender.portal} (${tender.source_id})`}
+          </p>
         )}
         {tender.reason && (
           <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -357,6 +402,9 @@ export default function TenderPage() {
         )}
         <RunControls id={id} status={tender.status} />
       </div>
+      {tender.kind === "private" && user?.role === "business" && (
+        <QuoteForm id={id} advance={tender.advance_percent} awarded={tender.status === "awarded"} />
+      )}
       <ChangesBanner changes={changes} status={tender.status} />
       <AgentLog entries={log.data || []} running={tender.status === "running"} />
       <Tabs

@@ -10,7 +10,7 @@ export function FairnessBadge({ score }) {
   return <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${style}`}>Fairness {score}/100</span>;
 }
 
-function DraftUpload() {
+export function DraftUpload({ detailPath = "/gov/tenders" }) {
   const [file, setFile] = useState(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ function DraftUpload() {
     },
     onSuccess: ({ id }) => {
       queryClient.invalidateQueries({ queryKey: ["gov"] });
-      navigate(`/gov/tenders/${id}`);
+      navigate(`${detailPath}/${id}`);
     },
   });
   return (

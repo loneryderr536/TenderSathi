@@ -1,11 +1,32 @@
 {
   "_about": "Dummy logins for the three dashboards, for the hackathon demo only (local data, no email is ever sent). Each account opens only its own dashboard. Change or remove them for a real deployment.",
   "accounts": [
-    {"role": "business", "name": "John (Ernakulam Woodworks)", "email": "john@gmail.com",
-     "password": "pass123", "company": "Ernakulam Woodworks"},
-    {"role": "government", "name": "Mary (Procurement Officer)", "email": "mary@gmail.com",
-     "password": "pass123", "department": "Kuttanad Block Panchayat"},
-    {"role": "platform", "name": "Admin (TenderSathi)", "email": "admin@gmail.com",
-     "password": "pass123"}
+    {
+      "role": "business",
+      "name": "John (Ernakulam Woodworks)",
+      "email": "john@gmail.com",
+      "password": "pass123",
+      "company": "Ernakulam Woodworks"
+    },
+    {
+      "role": "government",
+      "name": "Mary (Procurement Officer)",
+      "email": "mary@gmail.com",
+      "password": "pass123",
+      "department": "Kuttanad Block Panchayat"
+    },
+    {
+      "role": "private",
+      "name": "Priya (Marine Drive Hotels)",
+      "email": "priya@gmail.com",
+      "password": "pass123",
+      "department": "Marine Drive Hotels Pvt Ltd (fictional)"
+    },
+    {
+      "role": "platform",
+      "name": "Admin (TenderSathi)",
+      "email": "admin@gmail.com",
+      "password": "pass123"
+    }
   ]
 }

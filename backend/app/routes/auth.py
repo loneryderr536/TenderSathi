@@ -32,10 +32,10 @@ def _session(conn, user_id: int) -> dict:
 
 @router.post("/signup")
 def signup(body: SignupIn, conn=Depends(get_conn)):
-    """Business owners and government buyers sign up here; platform accounts are created only by the seed script."""
+    """Business owners, government buyers and private owners sign up here; platform accounts come only from the seed."""
     email = body.email.strip().lower()
-    if body.role not in ("business", "government"):
-        raise HTTPException(400, "Choose a business or a government account")
+    if body.role not in ("business", "government", "private"):
+        raise HTTPException(400, "Choose a business, government or private owner account")
     if not body.name.strip():
         raise HTTPException(400, "Please enter your name")
     if not EMAIL.match(email):
@@ -44,6 +44,8 @@ def signup(body: SignupIn, conn=Depends(get_conn)):
         raise HTTPException(400, "Use a password of at least 8 characters")
     if body.role == "government" and not (body.department or "").strip():
         raise HTTPException(400, "Please enter your department")
+    if body.role == "private" and not (body.department or "").strip():
+        raise HTTPException(400, "Please enter your organisation")
     if db.user_by_email(conn, email):
         raise HTTPException(409, "An account with this email already exists")
     user_id = db.create_user(conn, email, body.name.strip(), body.role, auth.hash_password(body.password),

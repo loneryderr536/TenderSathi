@@ -8,12 +8,13 @@ import { Button, Card, ErrorMessage, Field, inputClass } from "../components/ui"
 const ROLE_CHOICES = [
   { value: "business", label: "Small business owner", hint: "Find tenders and prepare bids" },
   { value: "government", label: "Government buyer", hint: "Check tenders for fairness and see who can bid" },
+  { value: "private", label: "Private owner", hint: "Post requests for quotation and compare quotes" },
 ];
 
 export default function SignupPage() {
   const [params] = useSearchParams();
   const [form, setForm] = useState(() => ({
-    name: "", email: "", password: "", role: params.get("as") === "government" ? "government" : "business", department: "",
+    name: "", email: "", password: "", role: ["government", "private"].includes(params.get("as")) ? params.get("as") : "business", department: "",
   }));
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   const { logIn } = useAuth();
@@ -23,7 +24,7 @@ export default function SignupPage() {
     onSuccess: (session) => {
       logIn(session);
       // A new business owner fills in their profile first; the agents need it.
-      navigate(session.user.role === "business" ? "/profile" : "/gov", { replace: true });
+      navigate({ business: "/profile", government: "/gov", private: "/private" }[session.user.role], { replace: true });
     },
   });
   return (
@@ -42,6 +43,9 @@ export default function SignupPage() {
           <Field label="Your name"><input className={inputClass} value={form.name} onChange={set("name")} required /></Field>
           {form.role === "government" && (
             <Field label="Department"><input className={inputClass} value={form.department} onChange={set("department")} placeholder="e.g. Kuttanad Block Panchayat" required /></Field>
+          )}
+          {form.role === "private" && (
+            <Field label="Organisation"><input className={inputClass} value={form.department} onChange={set("department")} placeholder="e.g. Marine Drive Hotels Pvt Ltd" required /></Field>
           )}
           <Field label="Email"><input type="email" autoComplete="username" className={inputClass} value={form.email} onChange={set("email")} required /></Field>
           <Field label="Password (at least 8 characters)">

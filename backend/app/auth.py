@@ -1,6 +1,7 @@
 """Small login system: salted password hashes, random session tokens, and role checks for the routes.
 
-Roles: "business" (a small business owner), "government" (a buyer department), "platform" (the TenderSathi team).
+Roles: "business" (a small business owner), "government" (a buyer department), "private" (a private owner who
+posts requests for quotation), "platform" (the TenderSathi team).
 """
 import hashlib
 import hmac
@@ -11,7 +12,7 @@ from fastapi import Depends, HTTPException, Request
 from app import db
 from app.routes.deps import get_conn
 
-ROLES = ("business", "government", "platform")
+ROLES = ("business", "government", "private", "platform")
 ITERATIONS = 200_000
 
 
@@ -48,10 +49,22 @@ def current_user(user=Depends(optional_user)) -> dict:
     return user
 
 
-def government_user(user=Depends(current_user)) -> dict:
-    """Government buyers, and the platform team (who can see every view)."""
-    if user["role"] not in ("government", "platform"):
-        raise HTTPException(403, "This page is for government buyers")
+def buyer_user(user=Depends(current_user)) -> dict:
+    """Buyers - government departments and private owners - and the platform team (who can see every view)."""
+    if user["role"] not in ("government", "private", "platform"):
+        raise HTTPException(403, "This page is for buyers")
+    return user
+
+
+def private_user(user=Depends(current_user)) -> dict:
+    if user["role"] not in ("private", "platform"):
+        raise HTTPException(403, "This page is for private owners")
+    return user
+
+
+def business_user(user=Depends(current_user)) -> dict:
+    if user["role"] != "business":
+        raise HTTPException(403, "Only a business account can send a quotation")
     return user
 
 

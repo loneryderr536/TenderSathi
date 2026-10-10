@@ -11,7 +11,7 @@ function ChooseDashboard({ onChoose }) {
   return (
     <Card title="Choose your dashboard">
       <p className="mb-3 text-sm text-stone-600">Then log in with the account for that dashboard.</p>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         {DASHBOARDS.map((d) => (
           <button
             key={d.role}

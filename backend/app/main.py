@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import config, db
 from app.memory import Memory
-from app.routes import admin, auth, companies, gov, scout, tenders
+from app.routes import admin, auth, companies, gov, rfq, scout, tenders
 
 
 def create_app(conn=None, mem=None, storage_dir: Path | None = None) -> FastAPI:
@@ -41,6 +41,7 @@ def create_app(conn=None, mem=None, storage_dir: Path | None = None) -> FastAPI:
     app.include_router(tenders.router)
     app.include_router(scout.router)
     app.include_router(gov.router)
+    app.include_router(rfq.router)
     app.include_router(admin.router)
     return app
 

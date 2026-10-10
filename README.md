@@ -14,8 +14,8 @@ The business owner reviews it, adds their price, and submits it themselves on th
 
 ## What it does
 
-TenderSathi has three views of one platform: the **business owner**, the **government buyer**, and the
-**platform team**. Switch between them with the toggle in the header.
+TenderSathi has four views of one platform: the **business owner**, the **government buyer**, the
+**private owner**, and the **platform team**. Switch between them with the toggle in the header.
 
 ### For small businesses
 
@@ -55,6 +55,16 @@ TenderSathi has three views of one platform: the **business owner**, the **gover
 - **Who can bid?** Screens every business registered on TenderSathi against a tender's rules and shows
   which rule shuts out how many (for example, "0 of 5 MSEs qualify; clause 4.1 excludes 5"). Only totals
   and anonymous labels are shown, never a business's name or profile.
+
+### For private owners
+
+- **Requests for quotation.** Companies, hotels and institutions post what they need with a short form.
+  TenderSathi turns it into a tender document, so the businesses' agents can read it like any tender.
+- **Advance of 25% to 50% is mandatory.** Every request states the advance the owner pays when placing
+  the order, so small suppliers can start work without borrowing.
+- **Compare and accept quotations.** Businesses send their own price, delivery time and a note; the
+  owner sees them lowest first and accepts one.
+- **Same checks as government buyers.** Fairness check and "who can bid?" on their own requests.
 
 ### For the platform team
 
@@ -205,7 +215,8 @@ Optional extras:
   then press **Find new tenders**: the Scout brings in the five sample tenders from the portal feed
   (`data/feed/portal_feed.json`) and starts the agents on the three that fit.
 - **Demo logins:** the loader also creates one dummy account per dashboard (password `pass123` for all):
-  `john@gmail.com` (business), `mary@gmail.com` (government), `admin@gmail.com` (platform). They are
+  `john@gmail.com` (business), `mary@gmail.com` (government), `priya@gmail.com` (private owner),
+  `admin@gmail.com` (platform). The loader also posts one sample request for quotation from Priya. They are
   listed in [`data/demo_accounts.json`](data/demo_accounts.json). On the login page,
   choose the dashboard, then log in with that dashboard's account; an account only opens its own
   dashboard. Anyone can sign up as a business owner or a government buyer; platform accounts come only

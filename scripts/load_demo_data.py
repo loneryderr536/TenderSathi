@@ -17,9 +17,9 @@ from app.demo import load_demo  # noqa: E402
 def main():
     storage = config.storage_dir()
     conn = db.connect(str(storage / "tendersathi.db"))
-    company_id, others = load_demo(conn, ROOT / "data")
+    company_id, others = load_demo(conn, ROOT / "data", storage)
     print(f"Business profile loaded (id {company_id}), plus {len(others)} other sample businesses.")
-    print("Demo logins (business, government, platform) are in data/demo_accounts.json.")
+    print("Demo logins (business, government, private owner, platform) are in data/demo_accounts.json.")
     print("Open http://localhost:5173 and log in.")
 
 

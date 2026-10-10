@@ -5,6 +5,8 @@ export const DASHBOARDS = [
     hint: "Find tenders, check eligibility, prepare bids", canSignUp: true, demoEmail: "john@gmail.com" },
   { role: "government", label: "Government dashboard", who: "Government buyers",
     hint: "Fairness check and who can bid", canSignUp: true, demoEmail: "mary@gmail.com" },
+  { role: "private", label: "Private owner dashboard", who: "Companies, hotels, institutions",
+    hint: "Post requests for quotation, compare quotes", canSignUp: true, demoEmail: "priya@gmail.com" },
   { role: "platform", label: "Platform dashboard", who: "TenderSathi team",
     hint: "Agent health, Scout and accuracy", canSignUp: false, demoEmail: "admin@gmail.com" },
 ];

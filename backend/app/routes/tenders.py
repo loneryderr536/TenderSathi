@@ -97,7 +97,7 @@ def read_result(tender_id: int, conn=Depends(get_conn)):
     tender = _tender_or_404(conn, tender_id)
     output = db.get_run_output(conn, tender_id)
     summary = {k: tender[k] for k in ("id", "title", "status", "reason", "deadline", "deadline_at", "emd",
-                                      "payment_terms", "portal", "buyer", "source_id")}
+                                      "payment_terms", "portal", "buyer", "source_id", "kind", "advance_percent")}
     changes = db.get_changes(conn, tender_id)
     return {"tender": summary, **{k: v.model_dump() if v else None for k, v in output.items()},
             "changes": changes.model_dump() if changes else None,

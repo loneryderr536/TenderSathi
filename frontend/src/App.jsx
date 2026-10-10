@@ -8,6 +8,8 @@ import GovPage from "./pages/GovPage";
 import GovTenderPage from "./pages/GovTenderPage";
 import InboxPage from "./pages/InboxPage";
 import LoginPage from "./pages/LoginPage";
+import PrivatePage from "./pages/PrivatePage";
+import PrivateRfqPage from "./pages/PrivateRfqPage";
 import ProfilePage from "./pages/ProfilePage";
 import SignupPage from "./pages/SignupPage";
 import TenderPage from "./pages/TenderPage";
@@ -30,12 +32,14 @@ function NavItem({ to, children }) {
 const ROLES = [
   { key: "business", label: "Business", to: "/" },
   { key: "gov", label: "Government", to: "/gov" },
+  { key: "private", label: "Private", to: "/private" },
   { key: "admin", label: "Platform", to: "/admin" },
 ];
 
 function roleOf(pathname) {
   if (pathname.startsWith("/gov")) return "gov";
   if (pathname.startsWith("/admin")) return "admin";
+  if (pathname.startsWith("/private")) return "private";
   return "business";
 }
 
@@ -72,10 +76,11 @@ function useCompanyFromLink() {
 const FOOTER = {
   business: "TenderSathi never contacts the government and never submits for you. You approve, you price, you submit.",
   gov: "Insights show totals and anonymous labels only; no business's profile is shared with buyers.",
+  private: "Every request carries an advance of 25% to 50% of the order value, paid when you place the order.",
   admin: "Platform view: agent health, Scout activity and how often owners agree with the agents.",
 };
 
-const ROLE_NAME = { business: "Business", government: "Government", platform: "Platform" };
+const ROLE_NAME = { business: "Business", government: "Government", private: "Private owner", platform: "Platform" };
 
 function LoggedOut() {
   return (
@@ -123,6 +128,7 @@ function Shell() {
               </>
             )}
             {role === "gov" && <NavItem to="/gov">Buyer dashboard</NavItem>}
+            {role === "private" && <NavItem to="/private">Owner dashboard</NavItem>}
             {role === "admin" && <NavItem to="/admin">Platform health</NavItem>}
           </nav>
           <span className="hidden text-xs text-brand-100 sm:inline" title={user.email}>
@@ -142,6 +148,9 @@ function Shell() {
           <Route path="/tenders/:id/approve" element={<ApprovePage />} />
           <Route path="/gov" element={<GovPage />} />
           <Route path="/gov/tenders/:id" element={<GovTenderPage />} />
+          <Route path="/private" element={<PrivatePage />} />
+          <Route path="/private/rfq/:id" element={<PrivateRfqPage />} />
+          <Route path="/private/drafts/:id" element={<GovTenderPage back="/private" backLabel="Owner dashboard" />} />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </main>

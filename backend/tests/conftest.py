@@ -20,7 +20,8 @@ def client(tmp_path):
     # tests/test_auth.py uses its own client without this.
     from app import auth
     admin = {"id": 0, "email": "admin@test", "name": "Admin", "role": "platform", "company_id": None, "department": None}
-    app.dependency_overrides[auth.government_user] = lambda: admin
+    app.dependency_overrides[auth.buyer_user] = lambda: admin
+    app.dependency_overrides[auth.private_user] = lambda: admin
     app.dependency_overrides[auth.platform_user] = lambda: admin
     return TestClient(app)
 

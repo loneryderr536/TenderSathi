@@ -65,7 +65,7 @@ def accuracy(feedback: list[dict]) -> list[dict]:
 
 @router.get("/stats")
 def stats(conn=Depends(get_conn)):
-    tenders = db.list_tenders(conn, kinds=("upload", "portal", "draft"))
+    tenders = db.list_tenders(conn, kinds=("upload", "portal", "draft", "private"))
     companies = db.list_companies(conn)
     log = db.all_log(conn)
     return {
