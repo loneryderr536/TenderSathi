@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { request } from "../api";
 import { useAuth } from "../auth";
 import { Button, Card, ErrorMessage, Field, inputClass } from "../components/ui";
@@ -13,9 +13,11 @@ const ROLE_CHOICES = [
 export default function SignupPage() {
   // Dummy details for the hackathon demo, so an account can be made with one click.
   // The number keeps the email new each time the page is opened.
+  const [params] = useSearchParams();
   const [form, setForm] = useState(() => ({
     name: "Demo User", email: `demo${Math.floor(1000 + Math.random() * 9000)}@tendersathi.demo`,
-    password: "demo-password-2026", role: "business", department: "Demo Department",
+    password: "demo-password-2026", role: params.get("as") === "government" ? "government" : "business",
+    department: "Demo Department",
   }));
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   const { logIn } = useAuth();
@@ -53,7 +55,7 @@ export default function SignupPage() {
           <Button type="submit" className="w-full" disabled={signup.isPending}>{signup.isPending ? "Creating…" : "Create account"}</Button>
         </form>
         <p className="mt-4 text-sm text-stone-600">
-          Already have an account? <Link to="/login" className="font-medium text-brand-700 underline">Log in</Link>
+          Already have an account? <Link to={`/login?as=${form.role}`} className="font-medium text-brand-700 underline">Log in</Link>
         </p>
       </Card>
     </div>

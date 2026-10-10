@@ -44,7 +44,7 @@ it("switches between the business, government and platform views", async () => {
 
 it("shows the login page when nobody is logged in", async () => {
   renderApp("/admin", null);
-  expect(await screen.findByText("Choose a dashboard")).toBeInTheDocument();
+  expect(await screen.findByText("Choose your dashboard")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/signup");
 });
 

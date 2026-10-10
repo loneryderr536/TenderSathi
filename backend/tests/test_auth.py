@@ -77,3 +77,15 @@ def test_first_profile_belongs_to_the_owner(raw):
     assert client.get("/auth/me", headers=bearer(token)).json()["company_id"] == company_id
     client.post("/companies", json={**COMPANY, "name": "Second"}, headers=bearer(token))
     assert client.get("/auth/me", headers=bearer(token)).json()["company_id"] == company_id   # not replaced
+
+
+def test_login_must_match_the_chosen_dashboard(raw):
+    client, conn = raw
+    signup(client)   # a business account
+    creds = {"email": "owner@shop.in", "password": "long-enough-1"}
+    assert client.post("/auth/login", json={**creds, "role": "business"}).status_code == 200
+    r = client.post("/auth/login", json={**creds, "role": "government"})
+    assert r.status_code == 403 and "not a government account" in r.json()["detail"]
+    assert client.post("/auth/login", json={**creds, "role": "platform"}).status_code == 403
+    # a wrong password says nothing about which dashboard the account belongs to
+    assert client.post("/auth/login", json={**creds, "password": "wrong-pass", "role": "government"}).status_code == 401

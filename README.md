@@ -205,9 +205,10 @@ Optional extras:
   then press **Find new tenders**: the Scout brings in the five sample tenders from the portal feed
   (`data/feed/portal_feed.json`) and starts the agents on the three that fit.
 - **Demo logins:** the loader also creates one account per view (business owner, government buyer,
-  platform admin), listed in [`data/demo_accounts.json`](data/demo_accounts.json). The login page has
-  one-click buttons that fill them in. Anyone can sign up as a business owner or a government buyer;
-  platform accounts come only from that file.
+  platform admin), listed in [`data/demo_accounts.json`](data/demo_accounts.json). On the login page,
+  choose the dashboard, then log in with that dashboard's account; an account only opens its own
+  dashboard. Anyone can sign up as a business owner or a government buyer; platform accounts come only
+  from that file.
 - **Autonomous mode:** set `SCOUT_INTERVAL_SECONDS=300` in `.env` and the Scout sweeps the portals by itself
   every five minutes.
 - **Run the tests:** `cd backend && pytest`

@@ -23,6 +23,7 @@ class SignupIn(BaseModel):
 class LoginIn(BaseModel):
     email: str
     password: str
+    role: str | None = None   # the dashboard the person chose; the account must belong to it
 
 
 def _session(conn, user_id: int) -> dict:
@@ -55,6 +56,9 @@ def login(body: LoginIn, conn=Depends(get_conn)):
     user = db.user_by_email(conn, body.email.strip().lower())
     if user is None or not auth.check_password(body.password, user["password_hash"]):
         raise HTTPException(401, "Wrong email or password")
+    if body.role is not None and user["role"] != body.role:
+        raise HTTPException(403, f"This is not a {body.role} account. "
+                                 "Choose the dashboard that matches your account.")
     return _session(conn, user["id"])
 
 
