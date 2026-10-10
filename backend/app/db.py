@@ -30,6 +30,17 @@ CREATE TABLE IF NOT EXISTS concessions (
 CREATE TABLE IF NOT EXISTS drafts (
     id INTEGER PRIMARY KEY, tender_id INTEGER, round INTEGER, cover_letter TEXT, sections_json TEXT,
     review_json TEXT);
+CREATE TABLE IF NOT EXISTS screenings (
+    id INTEGER PRIMARY KEY, tender_id INTEGER, company_id INTEGER, verdicts_json TEXT);
+CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY, tender_id INTEGER, kind TEXT, body_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY, tender_id INTEGER, agent TEXT, item TEXT, correct INTEGER,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS scout_runs (
+    id INTEGER PRIMARY KEY, found INTEGER, added INTEGER, queued INTEGER, message TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS agent_log (
     id INTEGER PRIMARY KEY, tender_id INTEGER, run_id TEXT, agent TEXT, message TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP);
@@ -52,7 +63,11 @@ def _locked(fn):
 
 # Columns added after the first release: older database files get them on connect.
 ADDED_COLUMNS = [("tenders", "reason", "TEXT"), ("tenders", "current_run_id", "TEXT"),
-                 ("tenders", "deadline_at", "TEXT"), ("tenders", "changes_json", "TEXT")]
+                 ("tenders", "deadline_at", "TEXT"), ("tenders", "changes_json", "TEXT"),
+                 # Where a tender came from: "upload" (a business), "portal" (the Scout), "draft" (a government
+                 # officer checking a tender before publishing it; never shown to businesses).
+                 ("tenders", "kind", "TEXT DEFAULT 'upload'"), ("tenders", "source_id", "TEXT"),
+                 ("tenders", "portal", "TEXT"), ("tenders", "buyer", "TEXT"), ("tenders", "published", "TEXT")]
 
 
 def connect(path: str) -> sqlite3.Connection:
@@ -115,10 +130,24 @@ def get_company(conn, company_id) -> dict | None:
 
 
 @_locked
-def create_tender(conn, pdf_path, title) -> int:
-    cur = conn.execute("INSERT INTO tenders (pdf_path, title, status) VALUES (?, ?, 'new')", (pdf_path, title))
+def create_tender(conn, pdf_path, title, kind="upload", source_id=None, portal=None, buyer=None,
+                  published=None) -> int:
+    cur = conn.execute(
+        "INSERT INTO tenders (pdf_path, title, status, kind, source_id, portal, buyer, published)"
+        " VALUES (?, ?, 'new', ?, ?, ?, ?, ?)", (pdf_path, title, kind, source_id, portal, buyer, published))
     conn.commit()
     return cur.lastrowid
+
+
+@_locked
+def tender_by_source(conn, source_id) -> dict | None:
+    row = conn.execute("SELECT * FROM tenders WHERE source_id = ?", (source_id,)).fetchone()
+    return dict(row) if row else None
+
+
+@_locked
+def list_companies(conn) -> list[dict]:
+    return [get_company(conn, r["id"]) for r in conn.execute("SELECT id FROM companies ORDER BY id")]
 
 
 @_locked
@@ -128,9 +157,12 @@ def get_tender(conn, tender_id) -> dict | None:
 
 
 @_locked
-def list_tenders(conn) -> list[dict]:
+def list_tenders(conn, kinds=("upload", "portal")) -> list[dict]:
+    """Newest first. Businesses see uploads and portal tenders; government drafts are listed only on request."""
+    marks = ", ".join("?" * len(kinds))
     return [dict(r) for r in conn.execute(
-        "SELECT id, title, deadline, deadline_at, emd, status, reason FROM tenders ORDER BY id DESC")]
+        "SELECT id, title, deadline, deadline_at, emd, status, reason, kind, portal, buyer, published FROM tenders"
+        f" WHERE COALESCE(kind, 'upload') IN ({marks}) ORDER BY id DESC", kinds)]
 
 
 @_locked
@@ -282,3 +314,68 @@ def get_run_output(conn, tender_id) -> dict:
         if draft_row["review_json"]:
             out["review"] = ReviewResult.model_validate_json(draft_row["review_json"])
     return out
+
+
+# --- Government screenings, saved reports, feedback and scout runs ---------------------------------------
+
+@_locked
+def save_screenings(conn, tender_id, results: dict[int, EligibilityResult]):
+    """Replace the participation screening of a tender: one eligibility result per registered business."""
+    with conn:
+        conn.execute("DELETE FROM screenings WHERE tender_id = ?", (tender_id,))
+        conn.executemany("INSERT INTO screenings (tender_id, company_id, verdicts_json) VALUES (?, ?, ?)",
+                         [(tender_id, cid, r.model_dump_json()) for cid, r in results.items()])
+
+
+@_locked
+def get_screenings(conn, tender_id) -> dict[int, EligibilityResult]:
+    return {r["company_id"]: EligibilityResult.model_validate_json(r["verdicts_json"]) for r in conn.execute(
+        "SELECT company_id, verdicts_json FROM screenings WHERE tender_id = ? ORDER BY company_id", (tender_id,))}
+
+
+@_locked
+def save_report(conn, tender_id, kind: str, body: dict):
+    """The latest report of a kind ("fairness", "gap_plan") for a tender."""
+    with conn:
+        conn.execute("DELETE FROM reports WHERE tender_id = ? AND kind = ?", (tender_id, kind))
+        conn.execute("INSERT INTO reports (tender_id, kind, body_json) VALUES (?, ?, ?)",
+                     (tender_id, kind, json.dumps(body)))
+
+
+@_locked
+def get_report(conn, tender_id, kind: str) -> dict | None:
+    row = conn.execute("SELECT body_json FROM reports WHERE tender_id = ? AND kind = ?", (tender_id, kind)).fetchone()
+    return json.loads(row["body_json"]) if row else None
+
+
+@_locked
+def add_feedback(conn, tender_id, agent, item, correct: bool):
+    """One owner judgement on one agent answer; a newer judgement on the same item replaces the old one."""
+    with conn:
+        conn.execute("DELETE FROM feedback WHERE tender_id = ? AND agent = ? AND item = ?", (tender_id, agent, item))
+        conn.execute("INSERT INTO feedback (tender_id, agent, item, correct) VALUES (?, ?, ?, ?)",
+                     (tender_id, agent, item, int(correct)))
+
+
+@_locked
+def get_feedback(conn, tender_id=None) -> list[dict]:
+    if tender_id is None:
+        return [dict(r) for r in conn.execute("SELECT * FROM feedback ORDER BY id")]
+    return [dict(r) for r in conn.execute("SELECT * FROM feedback WHERE tender_id = ? ORDER BY id", (tender_id,))]
+
+
+@_locked
+def add_scout_run(conn, found, added, queued, message=""):
+    conn.execute("INSERT INTO scout_runs (found, added, queued, message) VALUES (?, ?, ?, ?)",
+                 (found, added, queued, message))
+    conn.commit()
+
+
+@_locked
+def list_scout_runs(conn, limit=10) -> list[dict]:
+    return [dict(r) for r in conn.execute("SELECT * FROM scout_runs ORDER BY id DESC LIMIT ?", (limit,))]
+
+
+@_locked
+def all_log(conn) -> list[dict]:
+    return [dict(r) for r in conn.execute("SELECT * FROM agent_log ORDER BY id")]

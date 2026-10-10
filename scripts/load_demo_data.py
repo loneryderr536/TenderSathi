@@ -1,7 +1,8 @@
-"""Loads a sample business profile and demo tender PDFs into storage.
+"""Loads the sample business profiles into storage.
 
 Run from the project folder:  backend/.venv/bin/python scripts/load_demo_data.py
-Any PDF you put in data/tenders/ is loaded too (titled from data/tenders/titles.json, or its file name).
+Tenders are brought in by the Scout agent from the portal feed (data/feed/portal_feed.json):
+press "Find new tenders" in the website, or set SCOUT_INTERVAL_SECONDS in .env.
 """
 import sys
 from pathlib import Path
@@ -16,8 +17,8 @@ from app.demo import load_demo  # noqa: E402
 def main():
     storage = config.storage_dir()
     conn = db.connect(str(storage / "tendersathi.db"))
-    company_id, tender_ids = load_demo(conn, storage, ROOT / "data")
-    print(f"Business profile loaded (id {company_id}); {len(tender_ids)} tenders in the inbox.")
+    company_id, others = load_demo(conn, ROOT / "data")
+    print(f"Business profile loaded (id {company_id}), plus {len(others)} other sample businesses.")
     print(f"Open http://localhost:5173/?company={company_id} once so the website uses this profile.")
 
 

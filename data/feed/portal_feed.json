@@ -1,0 +1,15 @@
+{
+  "_about": "A stand-in for the public tender portals (GeM, CPPP, Kerala e-tender). The Scout agent reads this list the way it would read a portal's listing page: each entry is a published tender and its PDF. Fictional buyers, sample tenders.",
+  "tenders": [
+    {"source_id": "GEM/2026/B/5512031", "portal": "GeM", "buyer": "Periyar District Schools Board",
+     "published": "2026-10-02", "pdf": "school_desks.pdf"},
+    {"source_id": "CPPP/2026/VHSS/08", "portal": "CPPP", "buyer": "Vembanad Health Services Society",
+     "published": "2026-10-04", "pdf": "hospital_beds.pdf"},
+    {"source_id": "KL-ETENDER/2026/TRDA/21", "portal": "Kerala e-tender", "buyer": "Thekkady Rural Development Agency",
+     "published": "2026-10-05", "pdf": "office_workstations.pdf"},
+    {"source_id": "KL-ETENDER/2026/KBP/31", "portal": "Kerala e-tender", "buyer": "Kuttanad Block Panchayat",
+     "published": "2026-10-08", "pdf": "classroom_furniture.pdf"},
+    {"source_id": "GEM/2026/B/5530977", "portal": "GeM", "buyer": "Malabar Water Authority",
+     "published": "2026-10-09", "pdf": "steel_almirahs.pdf"}
+  ]
+}

@@ -125,6 +125,70 @@ TENDERS = {
             *COMMON_TERMS,
         ],
     },
+    "classroom_furniture.pdf": {
+        "title": "Supply of 80 classroom benches and 10 teacher tables",
+        "lines": [
+            "KUTTANAD BLOCK PANCHAYAT (fictional)",
+            "Notice Inviting Tender No. KBP/EDU/2026/31",
+            "1. Scope of work",
+            "Supply of 80 two-seater wooden classroom benches and 10 teacher tables for anganwadis and lower "
+            "primary schools in Kuttanad block. Estimated value of the order: Rs. 9 lakh.",
+            "2. Specification",
+            "Benches and tables shall be of Godrej make or equivalent. Only products of the brand named above "
+            "will be considered.",
+            "3. Important dates",
+            "Tender published on 8 October 2026. Last date and time for bid submission: 20 October 2026, 1:00 PM.",
+            "4. Eligibility criteria",
+            "4.1 Average annual turnover of the bidder in the last three financial years shall be at least "
+            "Rs. 2 crore. Mandatory.",
+            "4.2 The bidder shall have at least five years of experience supplying furniture to Central "
+            "Government departments. Mandatory. Experience with State Government, local bodies or private "
+            "buyers will not be counted.",
+            "4.3 The bidder shall hold a valid GST registration. Mandatory.",
+            "5. Documents to be submitted",
+            "GST registration certificate; PAN card; audited balance sheets for three years; work orders from "
+            "Central Government departments for each of the last five years.",
+            "6. Earnest money deposit (EMD) and tender fee",
+            "EMD of Rs. 1,00,000 by demand draft. No bidder is exempt from EMD. A non-refundable tender fee of "
+            "Rs. 5,000 is payable by all bidders.",
+            "7. Payment terms",
+            "Payment after the full quantity is delivered and accepted, subject to availability of funds.",
+            "8. Delivery",
+            "Delivery within 20 days of the supply order.",
+            *COMMON_TERMS,
+        ],
+    },
+    "steel_almirahs.pdf": {
+        "title": "Supply of 120 steel almirahs",
+        "lines": [
+            "MALABAR WATER AUTHORITY (fictional)",
+            "Notice Inviting Tender No. MWA/STR/2026/05",
+            "1. Scope of work",
+            "Supply of 120 full-height steel almirahs with four shelves and a locker for the authority's "
+            "field stations.",
+            "2. Specification",
+            "Cold-rolled steel sheet of 0.8 mm, powder coated, 1980 mm x 915 mm x 480 mm, with a three-way "
+            "locking handle.",
+            "3. Important dates",
+            "Last date and time for bid submission: 18 November 2026, 3:00 PM.",
+            "4. Eligibility criteria",
+            "4.1 Average annual turnover of the bidder in the last three financial years shall be at least "
+            "Rs. 40 lakh. Mandatory.",
+            "4.2 The bidder shall have supplied steel almirahs or steel cupboards worth at least Rs. 5 lakh "
+            "in one order in the last three years. Mandatory.",
+            "4.3 The bidder shall hold a valid GST registration. Mandatory.",
+            "5. Documents to be submitted",
+            "GST registration certificate; PAN card; Udyam registration certificate (for MSE benefits); audited "
+            "balance sheets for three years; purchase order of a similar supply.",
+            "6. Earnest money deposit (EMD)",
+            "EMD of Rs. 30,000. Micro and small enterprises registered under Udyam are exempt from EMD.",
+            "7. Payment terms",
+            "100% payment within 30 days of delivery and acceptance.",
+            "8. Delivery",
+            "Delivery within 45 days of the supply order.",
+            *COMMON_TERMS,
+        ],
+    },
 }
 
 def _corrigendum(lines):

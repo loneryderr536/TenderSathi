@@ -4,14 +4,43 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { clearCompanyId, getCompanyId, isCompanyGone, pollInterval, request } from "../api";
 import AgentLog from "../components/AgentLog";
 import Tabs from "../components/Tabs";
-import { Button, Countdown, ErrorMessage, Field, StatusBadge, VerdictBadge, inputClass } from "../components/ui";
+import { Button, Countdown, ErrorMessage, Field, ScoreBadge, StatusBadge, VerdictBadge, inputClass } from "../components/ui";
 
 const Empty = ({ children }) => <p className="text-sm text-stone-500">{children}</p>;
 
-function Summary({ tender, facts }) {
+const DECISION_TEXT = {
+  bid: "Worth bidding",
+  bid_with_care: "Bid only if you can close the gaps below",
+  no_bid: "Better to skip this one",
+};
+
+function ScoreCard({ score }) {
+  if (!score) return null;
+  const bar = score.decision === "bid" ? "bg-brand-600" : score.decision === "bid_with_care" ? "bg-amber-500" : "bg-red-600";
+  return (
+    <section className="rounded-lg border border-stone-200 p-4" aria-label="Bid or no-bid">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-3xl font-semibold">{score.score}</span>
+        <div className="min-w-40 flex-1">
+          <p className="text-sm font-semibold">{DECISION_TEXT[score.decision]}</p>
+          <div className="mt-1 h-2 rounded-full bg-stone-100">
+            <div className={`h-2 rounded-full ${bar}`} style={{ width: `${score.score}%` }} />
+          </div>
+        </div>
+        <ScoreBadge score={score} />
+      </div>
+      <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-stone-700">
+        {score.reasons.map((r) => <li key={r}>{r}</li>)}
+      </ul>
+    </section>
+  );
+}
+
+function Summary({ tender, facts, score }) {
   const rows = [["Deadline", tender.deadline], ["EMD (deposit)", tender.emd], ["Payment terms", tender.payment_terms]];
   return (
     <div className="space-y-4">
+      <ScoreCard score={score} />
       <dl className="grid gap-3 sm:grid-cols-3">
         {rows.map(([label, value]) => (
           <div key={label} className="rounded-lg bg-stone-50 p-3">
@@ -38,7 +67,24 @@ function Summary({ tender, facts }) {
   );
 }
 
-function Eligibility({ verdicts }) {
+/** Was the agent right? The owner's answers become the accuracy score on the platform dashboard. */
+function FeedbackButtons({ id, item, value }) {
+  const queryClient = useQueryClient();
+  const send = useMutation({
+    mutationFn: (correct) => request(`/tenders/${id}/feedback`, { method: "POST", json: { agent: "eligibility", item, correct } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tender", id, "result"] }),
+  });
+  const style = (on) => `rounded px-2 py-0.5 text-xs border ${on ? "border-brand-600 bg-brand-50 text-brand-700" : "border-stone-300 text-stone-600 hover:bg-stone-100"}`;
+  return (
+    <div className="flex items-center gap-1 text-xs text-stone-500">
+      Right?
+      <button type="button" className={style(value === true)} onClick={() => send.mutate(true)} aria-pressed={value === true}>Yes</button>
+      <button type="button" className={style(value === false)} onClick={() => send.mutate(false)} aria-pressed={value === false}>No</button>
+    </div>
+  );
+}
+
+function Eligibility({ id, verdicts, feedback = {} }) {
   if (!verdicts) return <Empty>No eligibility check yet.</Empty>;
   return (
     <ul className="divide-y divide-stone-200">
@@ -50,13 +96,46 @@ function Eligibility({ verdicts }) {
             <p className="text-sm text-stone-600">{v.reason}</p>
             <p className="text-xs text-stone-500">Clause {v.clause}, page {v.page}</p>
           </div>
+          <FeedbackButtons id={id} item={v.rule_text} value={feedback[v.rule_text]} />
         </li>
       ))}
     </ul>
   );
 }
 
-function Checklist({ checklist, concessions }) {
+function GapPlan({ id, plan, hasGaps }) {
+  const queryClient = useQueryClient();
+  const make = useMutation({
+    mutationFn: () => request(`/tenders/${id}/gap-plan`, { method: "POST", json: { company_id: getCompanyId() } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tender", id, "result"] }),
+  });
+  if (!hasGaps && !plan) return null;
+  return (
+    <section className="mt-6 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold">How to close the gaps before the deadline</h3>
+        <Button variant="secondary" onClick={() => make.mutate()} disabled={make.isPending || !getCompanyId()}>
+          {make.isPending ? "Planning…" : plan ? "Plan again" : "Make a plan"}
+        </Button>
+      </div>
+      <ErrorMessage error={make.error} />
+      {plan?.steps.map((s) => (
+        <div key={s.gap} className="rounded-lg border border-stone-200 p-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-medium">{s.gap}</p>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.fits_deadline ? "bg-brand-100 text-brand-700" : "bg-red-100 text-red-800"}`}>
+              about {s.typical_days} day{s.typical_days === 1 ? "" : "s"} · {s.fits_deadline ? "fits the deadline" : "too late for this tender"}
+            </span>
+          </div>
+          <p className="mt-1 text-stone-700">{s.how}</p>
+          {s.where && <p className="mt-1 text-xs text-stone-500">Where: {s.where}</p>}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function Checklist({ id, checklist, concessions, plan, hasGaps }) {
   if (!checklist) return <Empty>No checklist yet.</Empty>;
   return (
     <>
@@ -82,6 +161,7 @@ function Checklist({ checklist, concessions }) {
         </li>
       ))}
     </ul>
+    <GapPlan id={id} plan={plan} hasGaps={hasGaps} />
     </>
   );
 }
@@ -254,7 +334,8 @@ export default function TenderPage() {
   if (!result.data) {
     return result.error ? <ErrorMessage error={result.error} /> : <p className="text-sm text-stone-500">Loading…</p>;
   }
-  const { tender, facts, verdicts, checklist, concessions, draft, review, changes } = result.data;
+  const { tender, facts, verdicts, checklist, concessions, draft, review, changes, score, gap_plan, feedback } = result.data;
+  const hasGaps = Boolean(checklist?.items.some((i) => i.status === "need") || verdicts?.verdicts.some((v) => v.verdict !== "pass"));
 
   return (
     <div className="space-y-6">
@@ -264,7 +345,11 @@ export default function TenderPage() {
           <h1 className="text-2xl font-semibold">{tender.title}</h1>
           <StatusBadge status={tender.status} />
           <Countdown deadlineAt={tender.deadline_at} />
+          <ScoreBadge score={score} />
         </div>
+        {tender.buyer && (
+          <p className="text-sm text-stone-600">{tender.buyer} · found by the Scout on {tender.portal} ({tender.source_id})</p>
+        )}
         {tender.reason && (
           <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
             {tender.reason}
@@ -278,9 +363,9 @@ export default function TenderPage() {
         key={id}
         initial={initialTab}
         tabs={[
-          { label: "Summary", content: <Summary tender={tender} facts={facts} /> },
-          { label: "Eligibility", content: <Eligibility verdicts={verdicts} /> },
-          { label: "Checklist", content: <Checklist checklist={checklist} concessions={concessions} /> },
+          { label: "Summary", content: <Summary tender={tender} facts={facts} score={score} /> },
+          { label: "Eligibility", content: <Eligibility id={id} verdicts={verdicts} feedback={feedback} /> },
+          { label: "Checklist", content: <Checklist id={id} checklist={checklist} concessions={concessions} plan={gap_plan} hasGaps={hasGaps} /> },
           { label: "Draft", content: <Draft draft={draft} /> },
           { label: "Compliance", content: <Compliance review={review} /> },
         ]}

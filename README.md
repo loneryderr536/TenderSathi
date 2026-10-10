@@ -14,7 +14,16 @@ The business owner reviews it, adds their price, and submits it themselves on th
 
 ## What it does
 
-- **Finds the right tenders.** Marks which tenders in your inbox fit what your business makes or does
+TenderSathi has three views of one platform: the **business owner**, the **government buyer**, and the
+**platform team**. Switch between them with the toggle in the header.
+
+### For small businesses
+
+- **Finds tenders on its own.** The Scout agent sweeps the tender portals (GeM, CPPP, Kerala e-tender),
+  brings every new tender into the inbox, and starts the other agents on the ones that fit your business.
+- **Bid or no-bid, in one number.** Every tender gets a score out of 100 with the reasons: rules you
+  meet, documents you still need, days left, and concessions you can claim.
+- **Marks the right tenders.** Marks which tenders in your inbox fit what your business makes or does
   (and whether they mention your area), and lets you hide the rest.
 - **Reads the tender for you.** Turns a long tender document into a short summary: deadline,
   deposit, turnover rule, experience rule and required documents.
@@ -31,8 +40,29 @@ The business owner reviews it, adds their price, and submits it themselves on th
   first, and when a tender is changed (corrigendum) lists exactly what changed.
 - **Remembers your business.** Your profile, past orders and documents are stored once, so every
   new bid is faster than the last.
+- **Plans how to close the gaps.** For every missing document or unproven rule, it says where to get it,
+  how long it takes, and whether that fits before the deadline.
 - **Keeps you in control.** TenderSathi never contacts the government and never submits for you.
   You approve, you price, you submit.
+
+### For government buyers
+
+- **Fairness check before publishing.** Upload a draft tender. The Fairness agent pulls the clauses
+  related to each small-business policy check from the vector memory (RAG) and flags what works against
+  micro and small enterprises: no EMD exemption, tender fees, turnover out of proportion to the order,
+  experience limited to one kind of buyer, brand-locked specifications, slow payment. Each flag cites the
+  clause, the policy behind it, and a fix the officer can paste in.
+- **Who can bid?** Screens every business registered on TenderSathi against a tender's rules and shows
+  which rule shuts out how many (for example, "0 of 5 MSEs qualify; clause 4.1 excludes 5"). Only totals
+  and anonymous labels are shown, never a business's name or profile.
+
+### For the platform team
+
+- **Agent health.** Runs, average time, retries and failures for every agent, the model each one uses,
+  and the latest runs.
+- **Scout activity.** Every portal sweep and what it found.
+- **Measured accuracy.** Owners mark eligibility verdicts right or wrong; the dashboard shows how often
+  the agent agrees with them.
 
 ---
 
@@ -78,8 +108,8 @@ All screenshots are from the running app (see the [`screenshots/`](screenshots) 
 ## How it works
 
 1. **You set up your business once**: what you make, past orders, certificates and turnover.
-2. **You add a tender**, either by uploading the tender PDF from a government portal (GeM, CPPP or
-   the Kerala e-tender site) or from the tender inbox.
+2. **The Scout agent finds tenders** on the government portals (GeM, CPPP, Kerala e-tender) and adds the
+   ones that fit your business. You can also upload a tender PDF yourself.
 3. **The Reader agent** opens the document, splits it into clauses, and pulls out the key facts:
    deadline, deposit, eligibility rules and required documents.
 4. **The Eligibility agent** compares each rule with your business memory and gives a verdict,
@@ -96,7 +126,8 @@ All screenshots are from the running app (see the [`screenshots/`](screenshots) 
 ```mermaid
 flowchart TD
     A[You: business profile, past orders, certificates] --> M[(Business memory<br/>ChromaDB + SQLite)]
-    B[Tender PDF<br/>GeM · CPPP · Kerala e-tender] --> C[Reader agent<br/>splits clauses, extracts key facts]
+    P[Government portals<br/>GeM · CPPP · Kerala e-tender] --> S[Scout agent<br/>new tenders that fit]
+    S --> C[Reader agent<br/>splits clauses, extracts key facts]
     C --> D[Eligibility agent<br/>pass · fail · missing, with citations]
     M --> D
     D -- Fails a must-have rule --> X[Stop and explain why]
@@ -123,7 +154,7 @@ flowchart TD
 | **Pages and data loading** | React Router, TanStack Query |
 | **Server (backend)** | Python, FastAPI |
 | **Agent orchestration** | LangGraph (a graph with a stop branch and a review loop) |
-| **Agents and AI calls** | LangChain chat models, one node per agent |
+| **Agents and AI calls** | LangChain chat models: Scout, Reader, Tracker, Eligibility, Checklist, Drafter, Reviewer, plus Fairness and Gap planner |
 | **Checked agent outputs** | Pydantic, via LangChain structured output |
 | **AI model** | Groq: `openai/gpt-oss-120b` for most agents, `qwen/qwen3.8-27b` for eligibility (set per agent in `config.py`) |
 | **Reading PDFs** | PyMuPDF |
@@ -169,8 +200,12 @@ npm run dev
 Optional extras:
 
 - **Sample data:** from the project folder, run `backend/.venv/bin/python scripts/load_demo_data.py`.
-  It loads a sample business profile and every PDF in `data/tenders/`, then prints a link
-  (`http://localhost:5173/?company=1`). Open that link once so the website uses the sample profile.
+  It loads the sample business profile and six other sample businesses, then prints a link
+  (`http://localhost:5173/?company=1`). Open that link once so the website uses the sample profile,
+  then press **Find new tenders**: the Scout brings in the five sample tenders from the portal feed
+  (`data/feed/portal_feed.json`) and starts the agents on the three that fit.
+- **Autonomous mode:** set `SCOUT_INTERVAL_SECONDS=300` in `.env` and the Scout sweeps the portals by itself
+  every five minutes.
 - **Run the tests:** `cd backend && pytest`
 
 ---
@@ -198,10 +233,10 @@ Today, small businesses face these problems when bidding for government work. Te
 
 - TenderSathi is **a tool, not a middleman**. It never contacts the government, never submits bids
   and never takes a share of any contract.
-- The repo ships **three sample tenders** (fictional buyers, marked "SAMPLE TENDER" on every page):
-  one the sample business qualifies for, one it fails, and one with staged payment. Add real tender
-  PDFs downloaded by hand from public portals to `data/tenders/` and the loader picks them up.
-  Live ingestion from official tender feeds is planned.
+- The repo ships **five sample tenders** (fictional buyers, marked "SAMPLE TENDER" on every page),
+  listed in a sample portal feed that stands in for the GeM, CPPP and Kerala e-tender listings. One is
+  written to be unfair to small firms, for the government demo. Reading the live portals is the next step:
+  the Scout only needs a connector that turns a portal's listing into the same feed format.
 - The **final price is always set by the business owner**. TenderSathi does not suggest bid prices yet.
 - Eligibility checks help the owner decide, but **the tender document is always the final word**.
   Always read the flagged clauses before submitting.

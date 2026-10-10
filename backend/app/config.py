@@ -46,3 +46,20 @@ def cors_origins() -> list[str]:
     """Websites allowed to call the API: CORS_ORIGINS (comma-separated) or the local Vite ports."""
     value = os.environ.get("CORS_ORIGINS", "")
     return [o.strip() for o in value.split(",") if o.strip()] or DEFAULT_CORS_ORIGINS
+
+
+def feed_path() -> Path:
+    """The portal feed the Scout reads: FEED_PATH, or the sample feed in data/feed/."""
+    value = os.environ.get("FEED_PATH")
+    if not value:
+        return BACKEND_DIR.parent / "data" / "feed" / "portal_feed.json"
+    path = Path(value)
+    return path if path.is_absolute() else (BACKEND_DIR / path).resolve()
+
+
+def scout_interval() -> int:
+    """Seconds between automatic Scout sweeps; 0 (the default) means only when asked."""
+    try:
+        return max(0, int(os.environ.get("SCOUT_INTERVAL_SECONDS", "0")))
+    except ValueError:
+        return 0
