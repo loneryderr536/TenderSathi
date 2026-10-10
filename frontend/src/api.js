@@ -48,7 +48,8 @@ export function apiUrl(path) {
 
 /** Call the backend. Throws an Error whose message is the backend's `detail`. */
 export async function request(path, { method = "GET", json, form } = {}) {
-  const init = { method, headers: {} };
+  // The free ngrok tunnel (public demo backend) shows a warning page to browsers unless this header is sent.
+  const init = { method, headers: { "ngrok-skip-browser-warning": "true" } };
   const token = getToken();
   if (token) init.headers.Authorization = `Bearer ${token}`;
   if (json !== undefined) {

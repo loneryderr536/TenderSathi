@@ -53,7 +53,11 @@ LOCAL_ORIGIN_REGEX = r"http://(localhost|127\.0\.0\.1)(:\d+)?"
 
 
 def cors_origin_regex() -> str | None:
-    """Any localhost port, unless CORS_ORIGINS names the allowed websites exactly."""
+    """CORS_ORIGIN_REGEX if set (e.g. every Vercel preview of the site); else any localhost port,
+    unless CORS_ORIGINS names the allowed websites exactly."""
+    custom = os.environ.get("CORS_ORIGIN_REGEX", "").strip()
+    if custom:
+        return custom
     return None if os.environ.get("CORS_ORIGINS", "").strip() else LOCAL_ORIGIN_REGEX
 
 

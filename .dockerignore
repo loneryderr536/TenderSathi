@@ -1,0 +1,10 @@
+.git
+.env
+.claude
+.superpowers
+**/__pycache__
+**/.pytest_cache
+backend/.venv
+frontend
+storage
+screenshots

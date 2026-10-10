@@ -82,3 +82,20 @@ def test_startup_warms_up_memory(tmp_path):
     with TestClient(create_app(db.connect(":memory:"), FakeMem(), tmp_path)):
         pass
     assert FakeMem.warmed
+
+
+def test_cors_origin_regex_from_env(monkeypatch, tmp_path):
+    """Vercel gives every preview its own address; one pattern allows them all."""
+    from fastapi.testclient import TestClient
+    from app import db
+    from app.main import create_app
+    monkeypatch.setenv("CORS_ORIGINS", "https://tendersathi.vercel.app")
+    monkeypatch.setenv("CORS_ORIGIN_REGEX", r"https://tendersathi(-[a-z0-9-]+)?\.vercel\.app")
+    c = TestClient(create_app(db.connect(":memory:"), None, tmp_path))
+    for ok in ["https://tendersathi.vercel.app", "https://tendersathi-git-main-john.vercel.app"]:
+        assert preflight(c, ok).headers.get("access-control-allow-origin") == ok
+    assert "access-control-allow-origin" not in preflight(c, "https://evil.vercel.app").headers
+
+
+def test_health(client):
+    assert client.get("/health").json() == {"ok": True}

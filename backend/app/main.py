@@ -36,6 +36,11 @@ def create_app(conn=None, mem=None, storage_dir: Path | None = None) -> FastAPI:
     app.state.conn, app.state.mem, app.state.storage_dir = conn, mem, storage_dir
     app.add_middleware(CORSMiddleware, allow_origins=config.cors_origins(),
                        allow_origin_regex=config.cors_origin_regex(), allow_methods=["*"], allow_headers=["*"])
+    @app.get("/health", include_in_schema=False)
+    def health():
+        """For the host's health check (Railway)."""
+        return {"ok": True}
+
     app.include_router(auth.router)
     app.include_router(companies.router)
     app.include_router(tenders.router)
