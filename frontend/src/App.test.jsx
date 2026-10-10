@@ -3,10 +3,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { expect, it } from "vitest";
 import App from "./App";
-import { getCompanyId } from "./api";
+import { clearSession, getCompanyId, setSession } from "./api";
 import { mockApi } from "./test/utils";
 
-function renderApp(route) {
+const PLATFORM = { id: 9, email: "admin@x.in", name: "Admin", role: "platform", company_id: null, department: null };
+
+function renderApp(route, user = PLATFORM) {
+  clearSession();
+  if (user) setSession("token-1", user);
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={[route]}><App /></MemoryRouter>
@@ -36,4 +40,18 @@ it("switches between the business, government and platform views", async () => {
   expect(screen.getByRole("link", { name: "Business" })).toHaveAttribute("href", "/");
   expect(screen.getByRole("link", { name: "Platform" })).toHaveAttribute("href", "/admin");
   expect(screen.queryByRole("link", { name: "Business profile" })).not.toBeInTheDocument();
+});
+
+it("shows the login page when nobody is logged in", async () => {
+  renderApp("/admin", null);
+  expect(await screen.findByText("Choose your dashboard")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/signup");
+});
+
+it("a government buyer is kept to the government view", async () => {
+  mockApi({ "GET /gov/tenders": [] });
+  renderApp("/admin", { ...PLATFORM, role: "government", name: "Officer" });
+  expect(await screen.findByText("Buyer dashboard", { selector: "h1" })).toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "View as" })).not.toBeInTheDocument();
+  expect(screen.getByText("Officer · Government")).toBeInTheDocument();
 });

@@ -42,6 +42,19 @@ def test_load_demo_is_idempotent():
 
     assert demo.load_demo(conn, DATA) == (company_id, others)
     assert conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0] == 7
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 4
+
+
+def test_demo_accounts_can_log_in():
+    from app import auth
+    conn = db.connect(":memory:")
+    company_id, _ = demo.load_demo(conn, DATA)
+    accounts = json.loads((DATA / "demo_accounts.json").read_text())["accounts"]
+    assert {a["role"] for a in accounts} == {"business", "government", "private", "platform"}
+    for a in accounts:
+        user = db.user_by_email(conn, a["email"])
+        assert auth.check_password(a["password"], user["password_hash"]) and user["role"] == a["role"]
+    assert db.user_by_email(conn, "john@gmail.com")["company_id"] == company_id
 
 
 def test_portal_feed_lists_every_demo_tender_once():
@@ -56,3 +69,13 @@ def test_demo_corrigendum_parses():
     pages = pdf_to_pages(str(DATA / "tenders" / "corrigenda" / "school_desks_corrigendum.pdf"))
     text = "\n".join(pages)
     assert "6 November 2026" in text and "Rs. 75,000" in text and "4.5" in text
+
+
+def test_sample_rfq_is_posted_once_with_its_advance(tmp_path):
+    conn = db.connect(":memory:")
+    demo.load_demo(conn, DATA, tmp_path)
+    demo.load_demo(conn, DATA, tmp_path)
+    rfqs = db.list_tenders(conn, kinds=("private",))
+    assert len(rfqs) == 1 and rfqs[0]["advance_percent"] == 30 and rfqs[0]["portal"] == "Private RFQ"
+    text = "\n".join(pdf_to_pages(db.get_tender(conn, rfqs[0]["id"])["pdf_path"]))
+    assert "advance of 30%" in text and "4.1" in text

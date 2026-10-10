@@ -142,7 +142,11 @@ function TenderList() {
             <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
               <div>
                 <Link to={`/tenders/${t.id}`} className="font-medium text-brand-700 hover:underline">{t.title}</Link>
-                {t.buyer && <p className="text-xs text-stone-600">{t.buyer} · via {t.portal}</p>}
+                {t.buyer && (
+                  <p className="text-xs text-stone-600">
+                    {t.buyer} · via {t.portal}{t.advance_percent ? ` · ${t.advance_percent}% advance on order` : ""}
+                  </p>
+                )}
                 <p className="text-xs text-stone-500">
                   Deadline: {t.deadline || "—"} · EMD: <span>{t.emd || "—"}</span>
                 </p>

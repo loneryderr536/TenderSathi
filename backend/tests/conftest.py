@@ -15,7 +15,15 @@ COMPANY = {"name": "Ernakulam Woodworks", "products": "desks, tables", "location
 def client(tmp_path):
     conn = db.connect(":memory:")
     mem = Memory(str(tmp_path / "chroma"), embedding_function=HashEmbedding())
-    return TestClient(create_app(conn, mem, tmp_path))
+    app = create_app(conn, mem, tmp_path)
+    # Most tests are about features, not login: they act as a platform user (who can see every view).
+    # tests/test_auth.py uses its own client without this.
+    from app import auth
+    admin = {"id": 0, "email": "admin@test", "name": "Admin", "role": "platform", "company_id": None, "department": None}
+    app.dependency_overrides[auth.buyer_user] = lambda: admin
+    app.dependency_overrides[auth.private_user] = lambda: admin
+    app.dependency_overrides[auth.platform_user] = lambda: admin
+    return TestClient(app)
 
 
 @pytest.fixture

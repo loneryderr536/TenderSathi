@@ -10,7 +10,9 @@ def test_agent_metrics_times_retries_and_failures():
            line("r2", "reader", "started", 10), line("r2", "reader", "error, retrying: 429", 12),
            line("r2", "reader", "finished", 18), line("r2", "drafter", "started", 20),
            line("r2", "drafter", "failed: boom", 30)]
-    reader, drafter = agent_metrics(log)
+    log.insert(0, line("r2", "scout", "found on GeM (GEM/1); it fits your business, starting the agents", 9))
+    scout, reader, drafter = agent_metrics(log)
+    assert (scout["agent"], scout["runs"], scout["model"]) == ("scout", 1, "none (rules)")
     assert (reader["agent"], reader["runs"], reader["avg_seconds"], reader["retries"]) == ("reader", 2, 6.0, 1)
     assert (drafter["failures"], drafter["avg_seconds"]) == (1, None) and drafter["model"]
 

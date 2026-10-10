@@ -57,6 +57,7 @@ const STATUS = {
   awaiting_approval: ["Ready for review", "bg-sky-100 text-sky-800"],
   approved: ["Approved", "bg-brand-100 text-brand-700"],
   changed: ["Tender changed", "bg-amber-100 text-amber-800"],
+  awarded: ["Awarded", "bg-brand-100 text-brand-700"],
 };
 
 export function StatusBadge({ status }) {

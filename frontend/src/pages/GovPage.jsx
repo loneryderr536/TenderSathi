@@ -10,7 +10,7 @@ export function FairnessBadge({ score }) {
   return <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${style}`}>Fairness {score}/100</span>;
 }
 
-function DraftUpload() {
+export function DraftUpload({ detailPath = "/gov/tenders" }) {
   const [file, setFile] = useState(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ function DraftUpload() {
     },
     onSuccess: ({ id }) => {
       queryClient.invalidateQueries({ queryKey: ["gov"] });
-      navigate(`/gov/tenders/${id}`);
+      navigate(`${detailPath}/${id}`);
     },
   });
   return (
@@ -61,7 +61,7 @@ export default function GovPage() {
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Tenders on the portals" value={list.filter((t) => t.kind === "portal").length} hint="brought in by the Scout" />
-        <Stat label="Fairness checks run" value={checked.length} hint={`${list.filter((t) => t.kind === "draft").length} drafts`} />
+        <Stat label="Fairness checks run" value={checked.length} hint={(() => { const n = list.filter((t) => t.kind === "draft").length; return `${n} draft${n === 1 ? "" : "s"}`; })()} />
         <Stat label="Clauses flagged" value={concerns} hint="that work against small firms" tone={concerns ? "text-red-700" : "text-stone-900"} />
         <Stat label="Businesses that qualify" value={avgQualify === null ? "—" : `${avgQualify}%`} hint="average, screened tenders" tone="text-brand-700" />
       </div>

@@ -50,9 +50,11 @@ def preflight(client, origin):
 
 
 def test_cors_allows_local_dev_origins(client):
-    for origin in ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173", "http://127.0.0.1:4173"]:
+    for origin in ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:4173", "http://127.0.0.1:4173",
+                   "http://localhost:5174", "http://127.0.0.1:5175"]:   # Vite's next port when 5173 is busy
         assert preflight(client, origin).headers.get("access-control-allow-origin") == origin
-    assert "access-control-allow-origin" not in preflight(client, "http://evil.example").headers
+    for origin in ["http://evil.example", "http://localhost.evil.example", "http://localhost:5173.evil.example"]:
+        assert "access-control-allow-origin" not in preflight(client, origin).headers
 
 
 def test_cors_origins_from_env(monkeypatch, tmp_path):

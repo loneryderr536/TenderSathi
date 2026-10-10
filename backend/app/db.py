@@ -41,6 +41,14 @@ CREATE TABLE IF NOT EXISTS feedback (
 CREATE TABLE IF NOT EXISTS scout_runs (
     id INTEGER PRIMARY KEY, found INTEGER, added INTEGER, queued INTEGER, message TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS quotations (
+    id INTEGER PRIMARY KEY, tender_id INTEGER, company_id INTEGER, amount REAL, delivery_days INTEGER,
+    note TEXT, status TEXT DEFAULT 'submitted', created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY, email TEXT UNIQUE, name TEXT, role TEXT, password_hash TEXT,
+    company_id INTEGER, department TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS sessions (
+    token TEXT PRIMARY KEY, user_id INTEGER, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS agent_log (
     id INTEGER PRIMARY KEY, tender_id INTEGER, run_id TEXT, agent TEXT, message TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP);
@@ -67,7 +75,9 @@ ADDED_COLUMNS = [("tenders", "reason", "TEXT"), ("tenders", "current_run_id", "T
                  # Where a tender came from: "upload" (a business), "portal" (the Scout), "draft" (a government
                  # officer checking a tender before publishing it; never shown to businesses).
                  ("tenders", "kind", "TEXT DEFAULT 'upload'"), ("tenders", "source_id", "TEXT"),
-                 ("tenders", "portal", "TEXT"), ("tenders", "buyer", "TEXT"), ("tenders", "published", "TEXT")]
+                 ("tenders", "portal", "TEXT"), ("tenders", "buyer", "TEXT"), ("tenders", "published", "TEXT"),
+                 # A private owner's request for quotation ("private" kind) and drafts belong to the user who made them.
+                 ("tenders", "owner_user_id", "INTEGER"), ("tenders", "advance_percent", "INTEGER")]
 
 
 def connect(path: str) -> sqlite3.Connection:
@@ -131,10 +141,11 @@ def get_company(conn, company_id) -> dict | None:
 
 @_locked
 def create_tender(conn, pdf_path, title, kind="upload", source_id=None, portal=None, buyer=None,
-                  published=None) -> int:
+                  published=None, owner_user_id=None, advance_percent=None) -> int:
     cur = conn.execute(
-        "INSERT INTO tenders (pdf_path, title, status, kind, source_id, portal, buyer, published)"
-        " VALUES (?, ?, 'new', ?, ?, ?, ?, ?)", (pdf_path, title, kind, source_id, portal, buyer, published))
+        "INSERT INTO tenders (pdf_path, title, status, kind, source_id, portal, buyer, published, owner_user_id,"
+        " advance_percent) VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?)",
+        (pdf_path, title, kind, source_id, portal, buyer, published, owner_user_id, advance_percent))
     conn.commit()
     return cur.lastrowid
 
@@ -157,11 +168,12 @@ def get_tender(conn, tender_id) -> dict | None:
 
 
 @_locked
-def list_tenders(conn, kinds=("upload", "portal")) -> list[dict]:
-    """Newest first. Businesses see uploads and portal tenders; government drafts are listed only on request."""
+def list_tenders(conn, kinds=("upload", "portal", "private")) -> list[dict]:
+    """Newest first. Businesses see uploads, portal tenders and private RFQs; drafts are listed only on request."""
     marks = ", ".join("?" * len(kinds))
     return [dict(r) for r in conn.execute(
-        "SELECT id, title, deadline, deadline_at, emd, status, reason, kind, portal, buyer, published FROM tenders"
+        "SELECT id, title, deadline, deadline_at, emd, status, reason, kind, portal, buyer, published, owner_user_id,"
+        " advance_percent FROM tenders"
         f" WHERE COALESCE(kind, 'upload') IN ({marks}) ORDER BY id DESC", kinds)]
 
 
@@ -379,3 +391,86 @@ def list_scout_runs(conn, limit=10) -> list[dict]:
 @_locked
 def all_log(conn) -> list[dict]:
     return [dict(r) for r in conn.execute("SELECT * FROM agent_log ORDER BY id")]
+
+
+# --- Users and login sessions ---------------------------------------------------------------------------
+
+USER_FIELDS = "id, email, name, role, company_id, department"
+
+
+@_locked
+def create_user(conn, email, name, role, password_hash, company_id=None, department=None) -> int:
+    cur = conn.execute(
+        "INSERT INTO users (email, name, role, password_hash, company_id, department) VALUES (?, ?, ?, ?, ?, ?)",
+        (email, name, role, password_hash, company_id, department))
+    conn.commit()
+    return cur.lastrowid
+
+
+@_locked
+def user_by_email(conn, email) -> dict | None:
+    """Includes password_hash, for checking a login."""
+    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    return dict(row) if row else None
+
+
+@_locked
+def get_user(conn, user_id) -> dict | None:
+    row = conn.execute(f"SELECT {USER_FIELDS} FROM users WHERE id = ?", (user_id,)).fetchone()
+    return dict(row) if row else None
+
+
+@_locked
+def set_user_company(conn, user_id, company_id):
+    conn.execute("UPDATE users SET company_id = ? WHERE id = ?", (company_id, user_id))
+    conn.commit()
+
+
+@_locked
+def create_session(conn, token, user_id):
+    conn.execute("INSERT INTO sessions (token, user_id) VALUES (?, ?)", (token, user_id))
+    conn.commit()
+
+
+@_locked
+def user_for_token(conn, token) -> dict | None:
+    row = conn.execute(f"SELECT {', '.join('u.' + f for f in USER_FIELDS.split(', '))} FROM sessions s "
+                       "JOIN users u ON u.id = s.user_id WHERE s.token = ?", (token,)).fetchone()
+    return dict(row) if row else None
+
+
+@_locked
+def delete_session(conn, token):
+    conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+    conn.commit()
+
+
+# --- Quotations on private requests for quotation ---------------------------------------------------------
+
+@_locked
+def save_quotation(conn, tender_id, company_id, amount, delivery_days, note) -> int:
+    """One quotation per business per request: sending again replaces it."""
+    with conn:
+        conn.execute("DELETE FROM quotations WHERE tender_id = ? AND company_id = ?", (tender_id, company_id))
+        cur = conn.execute("INSERT INTO quotations (tender_id, company_id, amount, delivery_days, note) VALUES (?, ?, ?, ?, ?)",
+                           (tender_id, company_id, amount, delivery_days, note))
+    return cur.lastrowid
+
+
+@_locked
+def list_quotations(conn, tender_id) -> list[dict]:
+    return [dict(r) for r in conn.execute(
+        "SELECT q.*, c.name AS company_name, c.location AS company_location, c.udyam AS company_udyam"
+        " FROM quotations q JOIN companies c ON c.id = q.company_id WHERE q.tender_id = ? ORDER BY q.amount",
+        (tender_id,))]
+
+
+@_locked
+def accept_quotation(conn, tender_id, quotation_id) -> bool:
+    with conn:
+        cur = conn.execute("UPDATE quotations SET status = 'accepted' WHERE id = ? AND tender_id = ?", (quotation_id, tender_id))
+        if cur.rowcount == 0:
+            return False
+        conn.execute("UPDATE quotations SET status = 'declined' WHERE tender_id = ? AND id != ?", (tender_id, quotation_id))
+        conn.execute("UPDATE tenders SET status = 'awarded' WHERE id = ?", (tender_id,))
+    return True

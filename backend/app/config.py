@@ -48,6 +48,15 @@ def cors_origins() -> list[str]:
     return [o.strip() for o in value.split(",") if o.strip()] or DEFAULT_CORS_ORIGINS
 
 
+# Vite moves to the next free port (5174, 5175...) when 5173 is busy, so any local port is allowed.
+LOCAL_ORIGIN_REGEX = r"http://(localhost|127\.0\.0\.1)(:\d+)?"
+
+
+def cors_origin_regex() -> str | None:
+    """Any localhost port, unless CORS_ORIGINS names the allowed websites exactly."""
+    return None if os.environ.get("CORS_ORIGINS", "").strip() else LOCAL_ORIGIN_REGEX
+
+
 def feed_path() -> Path:
     """The portal feed the Scout reads: FEED_PATH, or the sample feed in data/feed/."""
     value = os.environ.get("FEED_PATH")

@@ -1,0 +1,22 @@
+{
+  "_about": "Sample request for quotation from the demo private owner (fictional).",
+  "rfqs": [
+    {
+      "owner": "priya@gmail.com",
+      "title": "Supply of 60 wooden dining tables and 240 chairs",
+      "scope": "Supply of 60 four-seater wooden dining tables and 240 matching chairs for the restaurant floors of a hotel in Kochi.",
+      "requirements": [
+        "The supplier shall have completed at least one furniture order of value not less than Rs. 5 lakh in the last three years",
+        "The supplier shall hold a valid GST registration"
+      ],
+      "documents": [
+        "GST registration certificate",
+        "PAN card",
+        "Purchase order of a similar supply"
+      ],
+      "deadline": "5 November 2026, 5:00 PM",
+      "delivery_days": 45,
+      "advance_percent": 30
+    }
+  ]
+}

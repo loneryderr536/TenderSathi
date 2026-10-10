@@ -4,10 +4,10 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends
 
-from app import config, db
+from app import auth, config, db
 from app.routes.deps import get_conn
 
-router = APIRouter(prefix="/admin", tags=["platform"])
+router = APIRouter(prefix="/admin", tags=["platform"], dependencies=[Depends(auth.platform_user)])
 
 
 def _time(value: str) -> datetime:
@@ -28,6 +28,8 @@ def agent_metrics(log: list[dict]) -> list[dict]:
             stats[agent]["retries"] += 1
         elif message.startswith("failed"):
             stats[agent]["failures"] += 1
+        elif agent == "scout":   # the Scout writes one line per tender it hands to the agents
+            stats[agent]["runs"] += 1
     order = ["scout", "reader", "tracker", "eligibility", "checklist", "drafter", "reviewer", "stop", "await_approval"]
     return [{"agent": a, "model": config.model_for(a) if a in config.AGENT_MODELS else "none (rules)", "runs": s["runs"],
              "avg_seconds": round(sum(s["seconds"]) / len(s["seconds"]), 1) if s["seconds"] else None,
@@ -63,7 +65,7 @@ def accuracy(feedback: list[dict]) -> list[dict]:
 
 @router.get("/stats")
 def stats(conn=Depends(get_conn)):
-    tenders = db.list_tenders(conn, kinds=("upload", "portal", "draft"))
+    tenders = db.list_tenders(conn, kinds=("upload", "portal", "draft", "private"))
     companies = db.list_companies(conn)
     log = db.all_log(conn)
     return {
