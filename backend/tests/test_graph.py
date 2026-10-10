@@ -119,3 +119,38 @@ def test_failure_reason_saved(setup):
     calls = []
     run_pipeline(conn, None, tid, cid, nodes=fake_nodes(calls, checklist=flaky(calls, 99)))
     assert db.get_tender(conn, tid)["reason"] == "checklist failed: boom"
+
+
+def test_runs_wait_for_each_other(setup):
+    """Two runs at once would hit Groq's tokens-per-minute limit: the second waits for the first."""
+    import threading
+    import time
+
+    conn, tid, cid = setup
+    order, release = [], threading.Event()
+
+    def slow_reader(state):
+        order.append("first-start")
+        release.wait(2)
+        order.append("first-end")
+        return {"facts": FACTS}
+
+    def quick_reader(state):
+        order.append("second-start")
+        return {"facts": FACTS}
+
+    def nodes(reader):
+        n = fake_nodes([], verdict="pass")
+        n["reader"] = reader
+        return n
+
+    first = threading.Thread(target=run_pipeline, args=(conn, None, tid, cid, nodes(slow_reader)))
+    second = threading.Thread(target=run_pipeline, args=(conn, None, tid, cid, nodes(quick_reader)))
+    first.start()
+    time.sleep(0.2)
+    second.start()
+    time.sleep(0.2)
+    assert order == ["first-start"]          # the second run has not begun
+    release.set()
+    first.join(5), second.join(5)
+    assert order[:3] == ["first-start", "first-end", "second-start"]

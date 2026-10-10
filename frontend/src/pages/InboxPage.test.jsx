@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
+import { setCompanyId } from "../api";
 import { mockApi, renderPage } from "../test/utils";
 import InboxPage from "./InboxPage";
 
@@ -60,4 +61,23 @@ it("shows days left and lists the nearest deadline first", async () => {
   expect(screen.getByText("28 days left")).toBeInTheDocument();
   expect(screen.getByText("Tender changed")).toBeInTheDocument();
   vi.useRealTimers();
+});
+
+it("marks which tenders fit the business and can hide the rest", async () => {
+  setCompanyId(1);
+  const calls = mockApi({ "GET /tenders": [
+    { id: 2, title: "School desks", deadline: null, emd: null, status: "new",
+      match: { fits: true, matched: ["desk"], in_area: true } },
+    { id: 1, title: "Hospital beds", deadline: null, emd: null, status: "new",
+      match: { fits: false, matched: [], in_area: false } },
+  ] });
+  const user = userEvent.setup();
+  renderPage(<InboxPage />);
+  expect(await screen.findByText("Fits your business · in your area")).toBeInTheDocument();
+  expect(screen.getByText("Not a typical fit")).toBeInTheDocument();
+  expect(calls[0].path).toBe("/tenders");
+  await user.click(screen.getByLabelText("Show only tenders that fit my business"));
+  expect(screen.queryByRole("link", { name: "Hospital beds" })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "School desks" })).toBeInTheDocument();
+  localStorage.clear();
 });

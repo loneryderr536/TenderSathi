@@ -45,11 +45,13 @@ def test_run_output_roundtrip_and_rerun_replaces(conn):
     draft = schemas.BidDraft(cover_letter="Dear Sir", sections=[schemas.Section(title="Experience", body="KSEB")])
     review = schemas.ReviewResult(matrix=[schemas.ComplianceRow(
         rule_text=RULE_TURNOVER.text, must_have=True, covered=True, where="Experience")], gaps=[])
-    state = {"facts": FACTS, "verdicts": verdicts(), "checklist": CHECKLIST, "draft": draft,
-             "review": review, "review_rounds": 1}
+    concessions = schemas.Concessions(items=[schemas.Concession(benefit="EMD exempt for MSEs", clause="3.2", page=1)])
+    state = {"facts": FACTS, "verdicts": verdicts(), "checklist": CHECKLIST, "concessions": concessions,
+             "draft": draft, "review": review, "review_rounds": 1}
     db.save_run_output(conn, tid, state)
     out = db.get_run_output(conn, tid)
-    assert out == {"facts": FACTS, "verdicts": verdicts(), "checklist": CHECKLIST, "draft": draft, "review": review}
+    assert out == {"facts": FACTS, "verdicts": verdicts(), "checklist": CHECKLIST, "concessions": concessions,
+                   "draft": draft, "review": review}
     assert db.get_tender(conn, tid)["deadline"] == FACTS.deadline
 
     one_rule = FACTS.model_copy(update={"rules": [RULE_TURNOVER]})

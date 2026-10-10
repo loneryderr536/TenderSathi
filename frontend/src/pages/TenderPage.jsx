@@ -56,9 +56,20 @@ function Eligibility({ verdicts }) {
   );
 }
 
-function Checklist({ checklist }) {
+function Checklist({ checklist, concessions }) {
   if (!checklist) return <Empty>No checklist yet.</Empty>;
   return (
+    <>
+    {concessions?.items.length > 0 && (
+      <div className="mb-4 rounded-lg border border-brand-100 bg-brand-50 p-3 text-sm">
+        <h3 className="mb-1 font-semibold text-brand-900">Concessions you can claim</h3>
+        <ul className="list-disc space-y-1 pl-5">
+          {concessions.items.map((c) => (
+            <li key={`${c.clause}-${c.benefit}`}>{c.benefit} <span className="text-stone-500">(clause {c.clause}, page {c.page})</span></li>
+          ))}
+        </ul>
+      </div>
+    )}
     <ul className="divide-y divide-stone-200">
       {checklist.items.map((i) => (
         <li key={i.document} className="flex flex-wrap items-center justify-between gap-2 py-3">
@@ -71,6 +82,7 @@ function Checklist({ checklist }) {
         </li>
       ))}
     </ul>
+    </>
   );
 }
 
@@ -242,7 +254,7 @@ export default function TenderPage() {
   if (!result.data) {
     return result.error ? <ErrorMessage error={result.error} /> : <p className="text-sm text-stone-500">Loading…</p>;
   }
-  const { tender, facts, verdicts, checklist, draft, review, changes } = result.data;
+  const { tender, facts, verdicts, checklist, concessions, draft, review, changes } = result.data;
 
   return (
     <div className="space-y-6">
@@ -268,7 +280,7 @@ export default function TenderPage() {
         tabs={[
           { label: "Summary", content: <Summary tender={tender} facts={facts} /> },
           { label: "Eligibility", content: <Eligibility verdicts={verdicts} /> },
-          { label: "Checklist", content: <Checklist checklist={checklist} /> },
+          { label: "Checklist", content: <Checklist checklist={checklist} concessions={concessions} /> },
           { label: "Draft", content: <Draft draft={draft} /> },
           { label: "Compliance", content: <Compliance review={review} /> },
         ]}

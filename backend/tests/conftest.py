@@ -29,7 +29,7 @@ def fake_agents(monkeypatch):
     from app import schemas
     from datetime import datetime
 
-    from app.agents import checklist, drafter, eligibility, reader, reviewer, tracker
+    from app.agents import checklist, concessions, drafter, eligibility, reader, reviewer, tracker
     from tests.samples import CHECKLIST, FACTS, verdicts
 
     outputs = {
@@ -37,6 +37,7 @@ def fake_agents(monkeypatch):
         (tracker, "parse_deadline"): datetime(2026, 10, 30, 15, 0),
         (eligibility, "judge_eligibility"): verdicts(),
         (checklist, "build_checklist"): CHECKLIST,
+        (concessions, "find_concessions"): schemas.Concessions(items=[]),
         (drafter, "draft_bid"): schemas.BidDraft(
             cover_letter="Dear Sir", sections=[schemas.Section(title="Experience", body="KSEB desks")]),
         (reviewer, "review_draft"): schemas.ReviewResult(matrix=[schemas.ComplianceRow(

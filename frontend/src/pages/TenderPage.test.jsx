@@ -35,6 +35,16 @@ it("checklist tab marks what is missing", async () => {
   expect(screen.getByText("You still need it")).toBeInTheDocument();
 });
 
+it("checklist tab lists the concessions the business can claim", async () => {
+  const concessions = { items: [{ benefit: "EMD exempt for Udyam MSEs", clause: "3.2", page: 1 }] };
+  mockApi({ "GET /tenders/5/result": result({ concessions }), "GET /tenders/5/log": [] });
+  const user = userEvent.setup();
+  show();
+  await user.click(await screen.findByRole("tab", { name: "Checklist" }));
+  expect(screen.getByText("Concessions you can claim")).toBeInTheDocument();
+  expect(screen.getByText(/EMD exempt for Udyam MSEs/)).toBeInTheDocument();
+});
+
 it("shows why a run stopped and that there is no draft", async () => {
   mockApi({
     "GET /tenders/5/result": result({ tender: { status: "stopped",

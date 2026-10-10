@@ -4,7 +4,7 @@ import json
 import sqlite3
 import threading
 
-from app.schemas import (BidDraft, Checklist, ChecklistItem, EligibilityResult, ReviewResult, Rule,
+from app.schemas import (BidDraft, Checklist, ChecklistItem, Concession, Concessions, EligibilityResult, ReviewResult, Rule,
                          RuleVerdict, Section, TenderChanges, TenderFacts)
 
 SCHEMA = """
@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS verdicts (
     clause TEXT, page INTEGER, must_have INTEGER);
 CREATE TABLE IF NOT EXISTS checklist_items (
     id INTEGER PRIMARY KEY, tender_id INTEGER, document TEXT, status TEXT, matched_file TEXT);
+CREATE TABLE IF NOT EXISTS concessions (
+    id INTEGER PRIMARY KEY, tender_id INTEGER, benefit TEXT, clause TEXT, page INTEGER);
 CREATE TABLE IF NOT EXISTS drafts (
     id INTEGER PRIMARY KEY, tender_id INTEGER, round INTEGER, cover_letter TEXT, sections_json TEXT,
     review_json TEXT);
@@ -33,7 +35,7 @@ CREATE TABLE IF NOT EXISTS agent_log (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 """
 
-OUTPUT_TABLES = ("rules", "verdicts", "checklist_items", "drafts")
+OUTPUT_TABLES = ("rules", "verdicts", "checklist_items", "concessions", "drafts")
 
 # One connection is shared by request handlers and background runs, so every helper
 # takes this lock: no interleaved transactions, no "recursive use of cursors".
@@ -206,6 +208,10 @@ def save_run_output(conn, tender_id, state: dict):
             conn.executemany(
                 "INSERT INTO checklist_items (tender_id, document, status, matched_file) VALUES (?, ?, ?, ?)",
                 [(tender_id, i.document, i.status, i.matched_file) for i in checklist.items])
+        if concessions := state.get("concessions"):
+            conn.executemany(
+                "INSERT INTO concessions (tender_id, benefit, clause, page) VALUES (?, ?, ?, ?)",
+                [(tender_id, c.benefit, c.clause, c.page) for c in concessions.items])
         if draft := state.get("draft"):
             review = state.get("review")
             conn.execute(
@@ -241,7 +247,8 @@ def get_changes(conn, tender_id) -> TenderChanges | None:
 
 @_locked
 def get_run_output(conn, tender_id) -> dict:
-    out = {"facts": None, "verdicts": None, "checklist": None, "draft": None, "review": None}
+    out = {"facts": None, "verdicts": None, "checklist": None, "concessions": None, "draft": None,
+           "review": None}
     tender = get_tender(conn, tender_id)
     if tender and tender["required_documents_json"] is not None:
         rules = [Rule(text=r["text"], clause=r["clause"], page=r["page"], must_have=bool(r["must_have"]))
@@ -262,6 +269,11 @@ def get_run_output(conn, tender_id) -> dict:
         out["checklist"] = Checklist(items=[
             ChecklistItem(document=r["document"], status=r["status"], matched_file=r["matched_file"])
             for r in item_rows])
+
+    concession_rows = conn.execute("SELECT * FROM concessions WHERE tender_id = ? ORDER BY id", (tender_id,)).fetchall()
+    if concession_rows:
+        out["concessions"] = Concessions(items=[
+            Concession(benefit=r["benefit"], clause=r["clause"], page=r["page"]) for r in concession_rows])
 
     draft_row = conn.execute("SELECT * FROM drafts WHERE tender_id = ? ORDER BY id DESC", (tender_id,)).fetchone()
     if draft_row:

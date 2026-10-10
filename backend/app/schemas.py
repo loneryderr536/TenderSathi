@@ -53,6 +53,16 @@ class Checklist(BaseModel):
     items: list[ChecklistItem]
 
 
+class Concession(BaseModel):
+    benefit: str   # e.g. "EMD exempt for Udyam-registered micro and small enterprises"
+    clause: str
+    page: int
+
+
+class Concessions(BaseModel):
+    items: list[Concession]
+
+
 class Section(BaseModel):
     title: str
     body: str

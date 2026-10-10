@@ -1,4 +1,5 @@
 """LangGraph StateGraph: agent nodes, the stop-on-fail branch, the review loop (max 2 send-backs)."""
+import threading
 from datetime import date, datetime
 from typing import Callable, TypedDict
 from uuid import uuid4
@@ -7,14 +8,19 @@ from langgraph.graph import END, START, StateGraph
 
 from app import db, pdf_reader
 from app.agents import checklist as checklist_agent
+from app.agents import concessions as concessions_agent
 from app.agents import drafter as drafter_agent
 from app.agents import eligibility as eligibility_agent
 from app.agents import reader as reader_agent
 from app.agents import reviewer as reviewer_agent
 from app.agents import tracker as tracker_agent
-from app.schemas import BidDraft, Checklist, EligibilityResult, ReviewResult, TenderFacts
+from app.schemas import BidDraft, Checklist, Concessions, EligibilityResult, ReviewResult, TenderFacts
 
 MAX_SEND_BACKS = 2
+
+# Groq allows 8,000 tokens per minute per model, so two runs at once hit the rate limit.
+# Runs wait their turn here; the tender shows "running" and the log "Starting…" meanwhile.
+RUN_LOCK = threading.Lock()
 
 NODE_NAMES = ("reader", "tracker", "eligibility", "stop", "checklist", "drafter", "reviewer", "await_approval")
 
@@ -26,6 +32,7 @@ class TenderState(TypedDict, total=False):
     deadline_at: datetime | None  # the Tracker's reading of facts.deadline
     verdicts: EligibilityResult
     checklist: Checklist
+    concessions: Concessions
     draft: BidDraft
     review: ReviewResult
     review_rounds: int  # send-backs so far; the drafter bumps it on each redraft
@@ -85,8 +92,13 @@ def run_pipeline(conn, mem, tender_id: int, company_id: int, nodes: dict[str, No
 
     Pass run_id to know it before the run starts (the API polls the log by it).
     """
-    nodes = nodes or make_nodes(conn, mem)
     run_id = run_id or uuid4().hex
+    with RUN_LOCK:
+        return _run_pipeline(conn, mem, tender_id, company_id, nodes, run_id)
+
+
+def _run_pipeline(conn, mem, tender_id, company_id, nodes, run_id) -> TenderState:
+    nodes = nodes or make_nodes(conn, mem)
     graph = build_graph({name: _logged(conn, tender_id, run_id, name, fn) for name, fn in nodes.items()})
 
     state: TenderState = {"tender_id": tender_id, "company_id": company_id, "review_rounds": 0, "status": "running"}
@@ -147,8 +159,16 @@ def make_nodes(conn, mem) -> dict[str, Node]:
         return {"status": "stopped", "stop_reason": reason}
 
     def checklist(state):
-        return {"checklist": checklist_agent.build_checklist(
+        update = {"checklist": checklist_agent.build_checklist(
             state["facts"].required_documents, company(state)["documents"])}
+        # Concessions are a bonus: the vector memory finds the likely clauses; a failure here
+        # must not stop the bid.
+        try:
+            found = mem.search_clauses(state["tender_id"], concessions_agent.SEARCH_QUERY)
+            update["concessions"] = concessions_agent.find_concessions(found, business_lines(company(state)))
+        except Exception:
+            pass
+        return update
 
     def drafter(state):
         review = state.get("review")
