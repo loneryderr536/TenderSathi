@@ -61,6 +61,7 @@ def test_cors_origins_from_env(monkeypatch, tmp_path):
     from fastapi.testclient import TestClient
     from app import db
     from app.main import create_app
+    monkeypatch.delenv("CORS_ORIGIN_REGEX", raising=False)   # a local .env may set one for the live site
     monkeypatch.setenv("CORS_ORIGINS", "http://192.168.1.20:5173, http://demo.local")
     c = TestClient(create_app(db.connect(":memory:"), None, tmp_path))
     assert preflight(c, "http://192.168.1.20:5173").headers.get("access-control-allow-origin") == "http://192.168.1.20:5173"

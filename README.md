@@ -22,8 +22,9 @@ One platform, four dashboards: **business owner**, **government buyer**, **priva
 
 **For small businesses**
 
-- **Finds tenders on its own.** The Scout agent sweeps the tender portals (GeM, CPPP, Kerala e-tender)
-  and starts the other agents on every tender that fits the business.
+- **Finds tenders on its own.** The Scout agent reads the tender portals' listings (in this demo, a sample
+  feed standing in for GeM, CPPP and Kerala e-tender) and private requests, and starts the other agents
+  on every tender that fits the business and has not been checked yet.
 - **Bid or no-bid, in one number.** A score out of 100 with the reasons: rules met, documents
   missing, days left, and concessions you can claim.
 - **Tells you if you qualify.** Every rule is marked *pass*, *fail* or *missing*, with the clause and
@@ -151,8 +152,10 @@ All screenshots are from the running app (see the [`screenshots/`](screenshots) 
 ## How it works
 
 1. **You set up your business once**: what you make, past orders, certificates and turnover.
-2. **The Scout agent finds tenders** on the government portals and the private requests posted on
-   TenderSathi, and starts the agents on the ones that fit. You can also upload a tender PDF.
+2. **The Scout agent finds tenders.** It reads the portal listing (a sample feed in this demo; a live
+   connector would produce the same format), adds new tenders to the inbox, and checks each tender and
+   private request against what the business makes. It starts the agents on every one that fits and
+   has not been run yet. You can also upload a tender PDF.
 3. **The Reader agent** splits the document into clauses and pulls out the key facts: deadline,
    deposit, eligibility rules and required documents. The clauses go into a vector memory (ChromaDB).
 4. **The Eligibility agent** compares each rule with your business and gives a verdict with its citation.

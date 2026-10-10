@@ -11,24 +11,43 @@ from app.routes.deps import get_conn, get_mem, get_storage
 router = APIRouter(prefix="/scout", tags=["scout"])
 
 
+def waiting(conn, exclude: list[int]) -> list[int]:
+    """Portal tenders and private requests already in the inbox that no agent has run on yet."""
+    return [t["id"] for t in db.list_tenders(conn, kinds=("portal", "private"))
+            if t["status"] == "new" and t["id"] not in exclude]
+
+
+def _where(tender: dict, new: bool) -> str:
+    if tender["kind"] == "private":
+        return f"private request from {tender['buyer']}"
+    seen = "found" if new else "waiting in the inbox, found earlier"
+    return f"{seen} on {tender['portal']} ({tender['source_id']})"
+
+
 def sweep(conn, storage, feed, company_id, start_run) -> dict:
-    """Bring in new portal tenders; start the agents (start_run(tender_id, run_id)) on those that fit."""
+    """Bring in new portal tenders, then start the agents (start_run(tender_id, run_id)) on every tender
+    that fits the business and has not been run yet - new ones and ones already waiting in the inbox."""
     found, added = scout_agent.ingest(conn, storage, feed)
     company = db.get_company(conn, company_id) if company_id is not None else None
+    candidates = added + waiting(conn, added) if company else []
     queued = []
-    for tid in scout_agent.worth_running(conn, company, added) if company else []:
+    for tid in scout_agent.worth_running(conn, company, candidates) if company else []:
         tender = db.get_tender(conn, tid)
         run_id = uuid4().hex
         if not db.claim_run(conn, tid, run_id):
             continue
-        db.add_log(conn, tid, run_id, "scout", f"found on {tender['portal']} ({tender['source_id']}); "
-                                               "it fits your business, starting the agents")
+        db.add_log(conn, tid, run_id, "scout", f"{_where(tender, tid in added)}; it fits your business, starting the agents")
         start_run(tid, run_id)
         queued.append(tid)
-    skipped = len(added) - len(queued)
-    message = f"{len(added)} new tender(s); {len(queued)} fit the business and went to the agents"
-    if company and skipped:
-        message += f"; {skipped} did not fit and were only added to the inbox"
+    picked_up = len(candidates) - len(added)
+    message = f"{len(added)} new tender(s)"
+    if picked_up:
+        message += f", {picked_up} waiting in the inbox"
+    message += f"; {len(queued)} fit the business and went to the agents"
+    if company and len(candidates) > len(queued):
+        message += f"; {len(candidates) - len(queued)} did not fit"
+    if company is None:
+        message += " (no business chosen, so none were checked for fit)"
     db.add_scout_run(conn, found, len(added), len(queued), message)
     return {"found": found, "added": added, "queued": queued, "message": message}
 
