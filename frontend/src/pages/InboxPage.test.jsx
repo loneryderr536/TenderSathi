@@ -81,3 +81,15 @@ it("marks which tenders fit the business and can hide the rest", async () => {
   expect(screen.getByRole("link", { name: "School desks" })).toBeInTheDocument();
   localStorage.clear();
 });
+
+it("the Scout button sweeps the portals and reports what it found", async () => {
+  const calls = mockApi({
+    "GET /tenders": TENDERS,
+    "POST /scout/run": { found: 5, added: [1], queued: [1], message: "1 new tender(s); 1 fit the business and went to the agents" },
+  });
+  const user = userEvent.setup();
+  renderPage(<InboxPage />);
+  await user.click(await screen.findByRole("button", { name: "Find new tenders" }));
+  expect(await screen.findByText(/1 fit the business/)).toBeInTheDocument();
+  expect(calls.some((c) => c.method === "POST" && c.path === "/scout/run")).toBe(true);
+});

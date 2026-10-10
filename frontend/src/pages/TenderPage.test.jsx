@@ -187,3 +187,19 @@ it("hides the corrigendum form before the tender has been read", async () => {
   await screen.findByRole("button", { name: "Run the agents" });
   expect(screen.queryByLabelText("Changed tender PDF (corrigendum)")).toBeNull();
 });
+
+it("shows the bid / no-bid score and records the owner's verdict feedback", async () => {
+  const score = { score: 92, decision: "bid", reasons: ["You can claim: EMD exemption"] };
+  const calls = mockApi({
+    "GET /tenders/5/result": result({ score, feedback: {} }), "GET /tenders/5/log": [],
+    "POST /tenders/5/feedback": { ok: true },
+  });
+  const user = userEvent.setup();
+  show();
+  expect(await screen.findByText("Worth bidding")).toBeInTheDocument();
+  expect(screen.getByText("You can claim: EMD exemption")).toBeInTheDocument();
+  await user.click(screen.getByRole("tab", { name: "Eligibility" }));
+  await user.click(screen.getByRole("button", { name: "Yes" }));
+  const post = calls.find((c) => c.method === "POST");
+  expect(JSON.parse(post.init.body)).toEqual({ agent: "eligibility", item: "Turnover of Rs 1 crore", correct: true });
+});

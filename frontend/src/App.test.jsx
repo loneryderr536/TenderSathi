@@ -27,3 +27,13 @@ it("ignores a bad company value", async () => {
   await screen.findByText(/No tenders yet/);
   expect(getCompanyId()).toBeNull();
 });
+
+it("switches between the business, government and platform views", async () => {
+  mockApi({ "GET /gov/tenders": [] });
+  renderApp("/gov");
+  expect(await screen.findByText("Buyer dashboard", { selector: "h1" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Government" })).toHaveAttribute("aria-current", "true");
+  expect(screen.getByRole("link", { name: "Business" })).toHaveAttribute("href", "/");
+  expect(screen.getByRole("link", { name: "Platform" })).toHaveAttribute("href", "/admin");
+  expect(screen.queryByRole("link", { name: "Business profile" })).not.toBeInTheDocument();
+});

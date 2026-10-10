@@ -5,7 +5,10 @@ from uuid import uuid4
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
-from app import db, graph, pdf_reader, relevance
+from datetime import date
+
+from app import db, graph, pdf_reader, relevance, scoring
+from app.agents import gap_plan as gap_agent
 from app.agents import reader as reader_agent
 from app.agents import tracker as tracker_agent
 from app.routes.deps import get_conn, get_mem, get_storage
@@ -45,6 +48,8 @@ def upload_tender(file: UploadFile = File(...), title: str | None = Form(None),
 def inbox(company_id: int | None = None, conn=Depends(get_conn)):
     """The inbox. With company_id each tender also says whether it fits that business."""
     tenders = db.list_tenders(conn)
+    for t in tenders:
+        t["score"] = scoring.bid_score(db.get_run_output(conn, t["id"]), t["deadline_at"])
     if company_id is None:
         return tenders
     company = db.get_company(conn, company_id)
@@ -92,10 +97,52 @@ def read_result(tender_id: int, conn=Depends(get_conn)):
     tender = _tender_or_404(conn, tender_id)
     output = db.get_run_output(conn, tender_id)
     summary = {k: tender[k] for k in ("id", "title", "status", "reason", "deadline", "deadline_at", "emd",
-                                      "payment_terms")}
+                                      "payment_terms", "portal", "buyer", "source_id")}
     changes = db.get_changes(conn, tender_id)
     return {"tender": summary, **{k: v.model_dump() if v else None for k, v in output.items()},
-            "changes": changes.model_dump() if changes else None}
+            "changes": changes.model_dump() if changes else None,
+            "score": scoring.bid_score(output, tender["deadline_at"]),
+            "gap_plan": db.get_report(conn, tender_id, "gap_plan"),
+            "feedback": {f["item"]: bool(f["correct"]) for f in db.get_feedback(conn, tender_id)}}
+
+
+class GapPlanIn(BaseModel):
+    company_id: int
+
+
+@router.post("/{tender_id}/gap-plan")
+def gap_plan(tender_id: int, body: GapPlanIn, conn=Depends(get_conn)):
+    """How to get each missing document, or meet each unproven rule, before the deadline."""
+    tender = _tender_or_404(conn, tender_id)
+    company = db.get_company(conn, body.company_id)
+    if company is None:
+        raise HTTPException(404, "Company not found")
+    output = db.get_run_output(conn, tender_id)
+    gaps = [i.document for i in output["checklist"].items if i.status == "need"] if output["checklist"] else []
+    if output["verdicts"]:
+        gaps += [f"{v.rule_text} (clause {v.clause})" for v in output["verdicts"].verdicts if v.verdict != "pass"]
+    if not gaps:
+        raise HTTPException(409, "Nothing is missing for this tender")
+    try:
+        plan = gap_agent.plan_gaps(gaps, tender["deadline"], graph.business_lines(company), date.today())
+    except Exception as e:
+        raise HTTPException(502, f"Could not make the plan: {e}")
+    db.save_report(conn, tender_id, "gap_plan", plan.model_dump())
+    return plan.model_dump()
+
+
+class FeedbackIn(BaseModel):
+    agent: str
+    item: str
+    correct: bool
+
+
+@router.post("/{tender_id}/feedback")
+def feedback(tender_id: int, body: FeedbackIn, conn=Depends(get_conn)):
+    """The owner says whether an agent's answer (e.g. one eligibility verdict) was right."""
+    _tender_or_404(conn, tender_id)
+    db.add_feedback(conn, tender_id, body.agent, body.item, body.correct)
+    return {"ok": True}
 
 
 @router.post("/{tender_id}/corrigendum")

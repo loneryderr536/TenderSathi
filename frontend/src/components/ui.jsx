@@ -82,3 +82,31 @@ export function Countdown({ deadlineAt }) {
   const style = c.urgent ? "font-semibold text-red-700" : c.passed ? "text-stone-500" : "text-stone-600";
   return <span className={`text-xs ${style}`}>{c.label}</span>;
 }
+
+const DECISION = {
+  bid: ["Bid", "bg-brand-100 text-brand-700"],
+  bid_with_care: ["Bid with care", "bg-amber-100 text-amber-800"],
+  no_bid: ["No-bid", "bg-red-100 text-red-800"],
+};
+
+/** The bid / no-bid score: "82 · Bid". */
+export function ScoreBadge({ score }) {
+  if (!score) return null;
+  const [label, style] = DECISION[score.decision] || [score.decision, "bg-stone-100"];
+  return (
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${style}`} title={score.reasons.join("\n")}>
+      {score.score} · {label}
+    </span>
+  );
+}
+
+/** A number tile for the dashboards. */
+export function Stat({ label, value, hint, tone = "text-stone-900" }) {
+  return (
+    <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-medium text-stone-500">{label}</p>
+      <p className={`mt-1 text-2xl font-semibold ${tone}`}>{value ?? "—"}</p>
+      {hint && <p className="mt-0.5 text-xs text-stone-500">{hint}</p>}
+    </div>
+  );
+}
