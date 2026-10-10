@@ -1,12 +1,15 @@
 import { useEffect } from "react";
-import { NavLink, Route, Routes, useLocation, useSearchParams } from "react-router";
+import { Navigate, NavLink, Route, Routes, useLocation, useSearchParams } from "react-router";
 import { setCompanyId } from "./api";
+import { AuthProvider, HOME, VIEWS, useAuth } from "./auth";
 import AdminPage from "./pages/AdminPage";
 import ApprovePage from "./pages/ApprovePage";
 import GovPage from "./pages/GovPage";
 import GovTenderPage from "./pages/GovTenderPage";
 import InboxPage from "./pages/InboxPage";
+import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
+import SignupPage from "./pages/SignupPage";
 import TenderPage from "./pages/TenderPage";
 
 function NavItem({ to, children }) {
@@ -36,10 +39,11 @@ function roleOf(pathname) {
   return "business";
 }
 
-function RoleSwitcher({ role }) {
+function RoleSwitcher({ role, allowed }) {
+  if (allowed.length < 2) return null;
   return (
     <div className="flex rounded-lg bg-brand-700/50 p-0.5" role="group" aria-label="View as">
-      {ROLES.map((r) => (
+      {ROLES.filter((r) => allowed.includes(r.key)).map((r) => (
         <NavLink
           key={r.key}
           to={r.to}
@@ -71,17 +75,46 @@ const FOOTER = {
   admin: "Platform view: agent health, Scout activity and how often owners agree with the agents.",
 };
 
-export default function App() {
+const ROLE_NAME = { business: "Business", government: "Government", platform: "Platform" };
+
+function LoggedOut() {
+  return (
+    <div className="min-h-screen">
+      <header className="bg-brand-900">
+        <div className="mx-auto max-w-5xl px-4 py-3">
+          <span className="text-lg font-semibold text-white">TenderSathi</span>
+          <span className="ml-3 text-sm text-brand-100">Government tenders, made winnable for small businesses</span>
+        </div>
+      </header>
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        <Routes>
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="*" element={<LoginPage />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+function Shell() {
   useCompanyFromLink();
-  const role = roleOf(useLocation().pathname);
+  const { user, logOut } = useAuth();
+  const { pathname } = useLocation();
+  if (!user) return <LoggedOut />;
+  const allowed = VIEWS[user.role] || [];
+  const role = roleOf(pathname);
+  if (pathname === "/login" || pathname === "/signup" || !allowed.includes(role)) {
+    return <Navigate to={HOME[user.role]} replace />;
+  }
   return (
     <div className="min-h-screen">
       <header className="bg-brand-900">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
           <div className="flex items-center gap-3">
-            <NavLink to="/" className="text-lg font-semibold text-white">TenderSathi</NavLink>
-            <RoleSwitcher role={role} />
+            <NavLink to={HOME[user.role]} className="text-lg font-semibold text-white">TenderSathi</NavLink>
+            <RoleSwitcher role={role} allowed={allowed} />
           </div>
+          <div className="flex flex-wrap items-center gap-2">
           <nav className="flex gap-1">
             {role === "business" && (
               <>
@@ -92,6 +125,13 @@ export default function App() {
             {role === "gov" && <NavItem to="/gov">Buyer dashboard</NavItem>}
             {role === "admin" && <NavItem to="/admin">Platform health</NavItem>}
           </nav>
+          <span className="hidden text-xs text-brand-100 sm:inline" title={user.email}>
+            {user.name} · {ROLE_NAME[user.role]}
+          </span>
+          <button type="button" onClick={logOut} className="rounded-md px-2 py-2 text-sm font-medium text-brand-100 hover:bg-brand-700/60">
+            Log out
+          </button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
@@ -107,5 +147,13 @@ export default function App() {
       </main>
       <footer className="mx-auto max-w-5xl px-4 pb-8 text-xs text-stone-500">{FOOTER[role]}</footer>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <Shell />
+    </AuthProvider>
   );
 }

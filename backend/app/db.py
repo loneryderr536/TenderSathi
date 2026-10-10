@@ -41,6 +41,11 @@ CREATE TABLE IF NOT EXISTS feedback (
 CREATE TABLE IF NOT EXISTS scout_runs (
     id INTEGER PRIMARY KEY, found INTEGER, added INTEGER, queued INTEGER, message TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY, email TEXT UNIQUE, name TEXT, role TEXT, password_hash TEXT,
+    company_id INTEGER, department TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS sessions (
+    token TEXT PRIMARY KEY, user_id INTEGER, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS agent_log (
     id INTEGER PRIMARY KEY, tender_id INTEGER, run_id TEXT, agent TEXT, message TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP);
@@ -379,3 +384,55 @@ def list_scout_runs(conn, limit=10) -> list[dict]:
 @_locked
 def all_log(conn) -> list[dict]:
     return [dict(r) for r in conn.execute("SELECT * FROM agent_log ORDER BY id")]
+
+
+# --- Users and login sessions ---------------------------------------------------------------------------
+
+USER_FIELDS = "id, email, name, role, company_id, department"
+
+
+@_locked
+def create_user(conn, email, name, role, password_hash, company_id=None, department=None) -> int:
+    cur = conn.execute(
+        "INSERT INTO users (email, name, role, password_hash, company_id, department) VALUES (?, ?, ?, ?, ?, ?)",
+        (email, name, role, password_hash, company_id, department))
+    conn.commit()
+    return cur.lastrowid
+
+
+@_locked
+def user_by_email(conn, email) -> dict | None:
+    """Includes password_hash, for checking a login."""
+    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    return dict(row) if row else None
+
+
+@_locked
+def get_user(conn, user_id) -> dict | None:
+    row = conn.execute(f"SELECT {USER_FIELDS} FROM users WHERE id = ?", (user_id,)).fetchone()
+    return dict(row) if row else None
+
+
+@_locked
+def set_user_company(conn, user_id, company_id):
+    conn.execute("UPDATE users SET company_id = ? WHERE id = ?", (company_id, user_id))
+    conn.commit()
+
+
+@_locked
+def create_session(conn, token, user_id):
+    conn.execute("INSERT INTO sessions (token, user_id) VALUES (?, ?)", (token, user_id))
+    conn.commit()
+
+
+@_locked
+def user_for_token(conn, token) -> dict | None:
+    row = conn.execute(f"SELECT {', '.join('u.' + f for f in USER_FIELDS.split(', '))} FROM sessions s "
+                       "JOIN users u ON u.id = s.user_id WHERE s.token = ?", (token,)).fetchone()
+    return dict(row) if row else None
+
+
+@_locked
+def delete_session(conn, token):
+    conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+    conn.commit()

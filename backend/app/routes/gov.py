@@ -3,12 +3,12 @@ from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 
-from app import db, participation, pdf_reader
+from app import auth, db, participation, pdf_reader
 from app.agents import fairness as fairness_agent
 from app.routes.deps import get_conn, get_mem, get_storage
 from app.routes.tenders import _save_pdf, _tender_or_404
 
-router = APIRouter(prefix="/gov", tags=["government"])
+router = APIRouter(prefix="/gov", tags=["government"], dependencies=[Depends(auth.government_user)])
 
 
 @router.get("/tenders")

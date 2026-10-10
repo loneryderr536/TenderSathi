@@ -1,0 +1,11 @@
+{
+  "_about": "Demo logins for the three dashboards. Sample accounts for the hackathon demo only; change or remove them for a real deployment.",
+  "accounts": [
+    {"role": "business", "name": "Owner, Ernakulam Woodworks", "email": "owner@tendersathi.demo",
+     "password": "business-demo-2026", "company": "Ernakulam Woodworks"},
+    {"role": "government", "name": "Procurement Officer", "email": "officer@tendersathi.demo",
+     "password": "government-demo-2026", "department": "Kuttanad Block Panchayat"},
+    {"role": "platform", "name": "TenderSathi Admin", "email": "admin@tendersathi.demo",
+     "password": "platform-demo-2026"}
+  ]
+}

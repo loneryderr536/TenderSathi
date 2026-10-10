@@ -19,7 +19,8 @@ def main():
     conn = db.connect(str(storage / "tendersathi.db"))
     company_id, others = load_demo(conn, ROOT / "data")
     print(f"Business profile loaded (id {company_id}), plus {len(others)} other sample businesses.")
-    print(f"Open http://localhost:5173/?company={company_id} once so the website uses this profile.")
+    print("Demo logins (business, government, platform) are in data/demo_accounts.json.")
+    print("Open http://localhost:5173 and log in.")
 
 
 if __name__ == "__main__":

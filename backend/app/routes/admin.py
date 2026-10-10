@@ -4,10 +4,10 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends
 
-from app import config, db
+from app import auth, config, db
 from app.routes.deps import get_conn
 
-router = APIRouter(prefix="/admin", tags=["platform"])
+router = APIRouter(prefix="/admin", tags=["platform"], dependencies=[Depends(auth.platform_user)])
 
 
 def _time(value: str) -> datetime:

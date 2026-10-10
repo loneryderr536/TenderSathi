@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app import db
+from app import auth, db
 from app.routes.deps import get_conn
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -27,11 +27,14 @@ class CompanyIn(BaseModel):
 
 
 @router.post("")
-def save_company(body: CompanyIn, conn=Depends(get_conn)):
-    """Create the profile, or update it when an id is given."""
+def save_company(body: CompanyIn, conn=Depends(get_conn), user=Depends(auth.optional_user)):
+    """Create the profile, or update it when an id is given. A logged-in owner's first profile becomes theirs."""
     fields = body.model_dump(exclude={"id"})
     if body.id is None:
-        return {"id": db.create_company(conn, **fields)}
+        company_id = db.create_company(conn, **fields)
+        if user and user["role"] == "business" and user["company_id"] is None:
+            db.set_user_company(conn, user["id"], company_id)
+        return {"id": company_id}
     if not db.update_company(conn, body.id, **fields):
         raise HTTPException(404, "Company not found")
     return {"id": body.id}

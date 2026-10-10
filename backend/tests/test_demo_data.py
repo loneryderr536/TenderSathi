@@ -42,6 +42,19 @@ def test_load_demo_is_idempotent():
 
     assert demo.load_demo(conn, DATA) == (company_id, others)
     assert conn.execute("SELECT COUNT(*) FROM companies").fetchone()[0] == 7
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 3
+
+
+def test_demo_accounts_can_log_in():
+    from app import auth
+    conn = db.connect(":memory:")
+    company_id, _ = demo.load_demo(conn, DATA)
+    accounts = json.loads((DATA / "demo_accounts.json").read_text())["accounts"]
+    assert {a["role"] for a in accounts} == {"business", "government", "platform"}
+    for a in accounts:
+        user = db.user_by_email(conn, a["email"])
+        assert auth.check_password(a["password"], user["password_hash"]) and user["role"] == a["role"]
+    assert db.user_by_email(conn, "owner@tendersathi.demo")["company_id"] == company_id
 
 
 def test_portal_feed_lists_every_demo_tender_once():
