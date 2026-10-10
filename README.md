@@ -8,21 +8,21 @@ It finds government tenders that suit the business, reads the long tender docume
 rule, and prepares a complete bid.
 The business owner reviews it, adds their price, and submits it themselves on the government portal.
 
-🌐 **Live demo:** *Coming soon*
-*(The demo runs locally first. A public link will be added here if it is deployed.)*
+▶️ **Try it:** TenderSathi runs on your own computer. See [Run it yourself](#run-it-yourself).
 
 ---
 
 ## What it does
 
-- **Finds the right tenders.** Shows only the tenders that match what your business makes or does,
-  where you work, and the order size you can handle.
+- **Finds the right tenders.** Marks which tenders in your inbox fit what your business makes or does
+  (and whether they mention your area), and lets you hide the rest.
 - **Reads the tender for you.** Turns a long tender document into a short summary: deadline,
   deposit, turnover rule, experience rule and required documents.
 - **Tells you if you qualify.** Checks every rule against your business profile and says
   *pass*, *fail* or *missing*, with the exact clause and page it came from.
 - **Builds your checklist.** Lists every document the tender needs, marks what you already have,
-  and flags what is missing. It also points out small-business concessions where the tender allows them.
+  and flags what is missing. It also lists the small-business concessions the tender gives you
+  (for example, no EMD for Udyam-registered firms).
 - **Drafts your bid.** Writes the cover letter and technical sections using your own past work
   and certificates.
 - **Double-checks everything.** A reviewer agent confirms every mandatory rule is answered before
@@ -38,7 +38,7 @@ The business owner reviews it, adds their price, and submits it themselves on th
 
 ## Screenshots
 
-All screenshots will be taken from the running app (see the [`screenshots/`](screenshots) folder).
+All screenshots are from the running app (see the [`screenshots/`](screenshots) folder).
 
 <table>
   <tr>
@@ -206,12 +206,6 @@ Today, small businesses face these problems when bidding for government work. Te
 - Eligibility checks help the owner decide, but **the tender document is always the final word**.
   Always read the flagged clauses before submitting.
 - Demo business profiles use **sample data only**.
-
----
-
-## Demo video
-
-▶️ **Watch the demo:** [VIDEO LINK HERE](#)
 
 ---
 
